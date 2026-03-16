@@ -9,7 +9,7 @@ export default function Login() {
 
 useEffect(() => {
 
-  const timer = setTimeout(() => {
+  // const timer = setTimeout(() => {
 
     if(!form.email) return;
 
