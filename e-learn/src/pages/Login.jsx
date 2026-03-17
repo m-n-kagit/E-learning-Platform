@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import axios from "axios"
+import validator from "./user_validator.js"
 export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -10,15 +11,6 @@ export default function Login() {
 useEffect(() => {
 
   const timer = setTimeout(() => {
-
-    if(!form.email) return;
-
-    axios.post('http://localhost:4500/vali_api/validate-email', {
-      email: form.email
-    })
-    .then(res => console.log(res.data))
-    .catch(err => console.log(err));
-
   }, 500); // wait 500ms
 
   return () => clearTimeout(timer);
