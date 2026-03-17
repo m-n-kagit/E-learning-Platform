@@ -7,7 +7,7 @@ export default function validator(text) {
         return false;
     }
 
-    if (emailRegex.test(email)) {
+    if (emailRegex.test(text)) {
         {
             return true;
         }

@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# dotenv environment variables file
+../e-learn_backend/.env
