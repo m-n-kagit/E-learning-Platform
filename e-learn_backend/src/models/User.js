@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "admin","course_admin"],
       default: "user",
     },
   },
@@ -36,13 +36,12 @@ const userSchema = new mongoose.Schema(
 // Hash password BEFORE saving to DB.
 // This runs on .save() — not on .findByIdAndUpdate()
 
-userSchema.pre("save", async function (next) { 
+userSchema.pre("save", async function () { 
   // Only hash if password field was actually modified
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password")) return;
 
   const salt = await bcrypt.genSalt(12); // Cost factor: higher = slower = safer
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
 // ─── INSTANCE METHOD ─────────────────────────────────────────────────────────

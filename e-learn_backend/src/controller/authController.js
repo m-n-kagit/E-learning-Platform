@@ -2,6 +2,7 @@
 import User from "../models/User.js";
 // const generateToken = require("../utils/generateToken");
 import generateToken from "../utils/generateToken.js";
+import error from "../middlewares/errorMiddleware.js";
 // ─── REGISTER ─────────────────────────────────────────────────────────────────
 // POST /api/auth/register
 const registerUser = async (req, res, next) => {

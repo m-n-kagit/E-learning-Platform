@@ -1,7 +1,9 @@
 import  jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-dotenv.config();
 import User from "../models/User.js";
+dotenv.config();
+
+const tokenSecret =  process.env.ACCESS_TOKEN_SECRET;
 
 // ─── PROTECT MIDDLEWARE ───────────────────────────────────────────────────────
 // Verifies the JWT in the Authorization header.
@@ -18,7 +20,8 @@ const protect = async (req, res, next) => { //next is used to pass the control t
       //  for sending JWTs in the Authorization header. 
       // It indicates that the client is sending a token that should be used for authentication.
     ) {
-      token = req.headers.authorization.split(" ")[1];
+      token = req.headers.authorization.split(" ")[1];//split function here is used
+      //  to split the string into an array based on the space character.
     }
 
     if (!token) {
@@ -27,7 +30,11 @@ const protect = async (req, res, next) => { //next is used to pass the control t
     }
 
     // Verify the token — throws JsonWebTokenError or TokenExpiredError if invalid
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!tokenSecret) {
+      throw new Error("JWT secret is missing from environment variables");
+    }
+
+    const decoded = jwt.verify(token, tokenSecret);
 
     // Fetch the real user from DB (to ensure the account still exists)
     // select("-password") is redundant here since model has select:false,
