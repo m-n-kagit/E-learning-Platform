@@ -1,9 +1,8 @@
-const express = require("express");
-const dotenv = require("dotenv");
-const connectDB = require("./config/db");
-const authRoutes = require("./routes/authRoutes");
-const { errorHandler } = require("./middleware/errorMiddleware");
-
+import express from "express";
+import dotenv from "dotenv";
+import connectDB from "./db/index.js";
+import authRoutes from "./routes/authRoutes.js"; 
+import errorHandler from "./middlewares/errorMiddleware.js";
 dotenv.config();
 
 // Connect to MongoDB
@@ -12,8 +11,8 @@ connectDB();
 const app = express();
 
 // Parse incoming JSON bodies
-app.use(express.json());
-
+app.use(express.json()); 
+//before the data is passed 
 // Mount auth routes
 app.use("/api/auth", authRoutes);
 

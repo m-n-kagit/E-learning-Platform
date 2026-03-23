@@ -1,4 +1,4 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 
 /**
  * Generates a signed JWT token.
@@ -12,4 +12,4 @@ const generateToken = (userId) => {
   });
 };
 
-module.exports = generateToken;
+export default generateToken;

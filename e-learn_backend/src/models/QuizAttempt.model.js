@@ -47,4 +47,5 @@ const quizAttemptSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("QuizAttempt", quizAttemptSchema);
+// export default mongoose.model("QuizAttempt", quizAttemptSchema);
+export default quizAttemptModel = mongoose.model("QuizAttempt", quizAttemptSchema);

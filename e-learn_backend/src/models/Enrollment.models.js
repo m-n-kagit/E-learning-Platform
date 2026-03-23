@@ -1,3 +1,4 @@
+import mongoose from "mongoose";  
 const enrollmentSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -17,3 +18,5 @@ const enrollmentSchema = new mongoose.Schema({
     default: "pending"
   }
 });
+
+export default enrollmentModel = mongoose.model("Enrollment", enrollmentSchema);

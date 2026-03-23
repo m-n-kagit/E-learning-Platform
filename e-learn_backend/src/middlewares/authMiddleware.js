@@ -1,11 +1,13 @@
 import  jwt from "jsonwebtoken";
-import User from ("../models/User");
+import dotenv from "dotenv";
+dotenv.config();
+import User from "../models/User.js";
 
 // ─── PROTECT MIDDLEWARE ───────────────────────────────────────────────────────
 // Verifies the JWT in the Authorization header.
 // If valid → attaches the decoded user to req.user and calls next().
 // If invalid/missing → throws 401.
-const protect = async (req, res, next) => {
+const protect = async (req, res, next) => { //next is used to pass the control to the next middleware in the stack.
   try {
     let token;
 
@@ -66,4 +68,4 @@ const restrictTo = (...roles) => {
   };
 };
 
-module.exports = { protect, restrictTo };
+export default { protect, restrictTo };

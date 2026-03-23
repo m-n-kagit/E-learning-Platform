@@ -1,6 +1,7 @@
-const User = require("../models/User");
-const generateToken = require("../utils/generateToken");
-
+// const User = require("../models/User");
+import User from "../models/User.js";
+// const generateToken = require("../utils/generateToken");
+import generateToken from "../utils/generateToken.js";
 // ─── REGISTER ─────────────────────────────────────────────────────────────────
 // POST /api/auth/register
 const registerUser = async (req, res, next) => {
@@ -112,4 +113,4 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { registerUser, loginUser, getMe };
+export default  { registerUser ,  loginUser, getMe};

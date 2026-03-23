@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema(
   {
@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
+      // match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
     },
     password: {
       type: String,
@@ -32,10 +32,11 @@ const userSchema = new mongoose.Schema(
   { timestamps: true } // Adds createdAt and updatedAt automatically
 );
 
-// ─── PRE-SAVE HOOK ───────────────────────────────────────────────────────────
+// PRE-SAVE HOOK
 // Hash password BEFORE saving to DB.
 // This runs on .save() — not on .findByIdAndUpdate()
-userSchema.pre("save", async function (next) {
+
+userSchema.pre("save", async function (next) { 
   // Only hash if password field was actually modified
   if (!this.isModified("password")) return next();
 
@@ -50,4 +51,6 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-module.exports = mongoose.model("User", userSchema);
+// module.exports = mongoose.model("User", userSchema);
+const User_Model = mongoose.model("User", userSchema);
+export default User_Model;
