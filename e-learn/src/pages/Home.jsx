@@ -35,29 +35,6 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="hero-card">
-            <div className="hc-title">Course Progress Overview</div>
-            {[
-              { name: "Web Development",  pct: 82 },
-              { name: "Machine Learning", pct: 67 },
-              { name: "UI/UX Design",     pct: 54 },
-              { name: "Data Science",     pct: 71 },
-            ].map((c) => (
-              <div className="prog-item" key={c.name}>
-                <div className="prog-row">
-                  <span>{c.name}</span>
-                  <span className="prog-pct">{c.pct}%</span>
-                </div>
-                <div className="prog-bar">
-                  <div className="prog-fill" style={{ width: `${c.pct}%` }} />
-                </div>
-              </div>
-            ))}
-            <div className="hc-footer">
-              <span>Active learners this month</span>
-              <strong>52,000+</strong>
-            </div>
-          </div>
         </div>
       </section>
 

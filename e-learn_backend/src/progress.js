@@ -1,3 +1,4 @@
+import Progress from "./models/Progress.js";
 const progress = await Progress.findOne({ user, course });
 
 const lessonData = progress.lessonProgress.find(
