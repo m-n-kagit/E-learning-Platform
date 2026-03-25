@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 
-const userSchema = new mongoose.Schema(
+const tempUserSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -25,8 +25,13 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin","course_admin"],
+      enum: ["user", "admin", "course_admin"],
       default: "user",
+    },
+    expiresAt: {
+      type: Date,
+      default: Date.now,
+      expires: 600, // Document will auto-delete after 10 minutes
     },
   },
   { timestamps: true } // Adds createdAt and updatedAt automatically
@@ -36,9 +41,9 @@ const userSchema = new mongoose.Schema(
 // Hash password BEFORE saving to DB.
 // This runs on .save() — not on .findByIdAndUpdate()
 
-userSchema.pre("save", async function () { 
+tempUserSchema.pre("save", async function () { 
   // Only hash if password field was actually modified
-  if (!this.isModified("password") || this.$locals?.passwordAlreadyHashed) return;
+  if (!this.isModified("password")) return;
 
   const salt = await bcrypt.genSalt(12); // Cost factor: higher = slower = safer
   this.password = await bcrypt.hash(this.password, salt);
@@ -46,10 +51,10 @@ userSchema.pre("save", async function () {
 
 // ─── INSTANCE METHOD ─────────────────────────────────────────────────────────
 // Compare entered password with stored hashed password
-userSchema.methods.matchPassword = async function (enteredPassword) {
+tempUserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
 // module.exports = mongoose.model("User", userSchema);
-const User_Model = mongoose.model("User", userSchema);
-export default User_Model;
+const TempUser_Model = mongoose.model("TempUser", tempUserSchema);
+export default TempUser_Model;

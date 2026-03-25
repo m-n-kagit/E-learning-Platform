@@ -5,6 +5,8 @@ export default function Signup() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
 
+
+  
   return (
     <div className="auth-page">
       <div className="auth-card">
