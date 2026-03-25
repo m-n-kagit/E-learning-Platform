@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
 const tokenSecret = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET;
-const tokenExpiry = process.env.JWT_EXPIRES_IN || process.env.ACCESS_TOKEN_EXPIRY || "7d";
+const tokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || "7d";
 
 /**
  * Generates a signed JWT token.
