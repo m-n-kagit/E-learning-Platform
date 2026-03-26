@@ -1,10 +1,16 @@
 import express from "express";
 import cors from "cors";
-import cookieParser from "cookie-parser" //cookies acces and can be set 
+import cookieParser from "cookie-parser"; //cookies acces and can be set
+import dotenv from "dotenv";
+import authRoutes from "./routes/authRoutes.js";
+import errorHandler from "./middlewares/errorMiddleware.js";
+
+dotenv.config();
+
 const app = express();
 
 app.use(cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
     credentials : true //allow cookies auth 
 }))
 

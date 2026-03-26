@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import validator from "./user_validator.js";
 import pass_word_verify from "./pass_validator.js";
+import axios from "axios";
+
+
 
 export default function Login() {
 
@@ -11,7 +14,30 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [emailError, setEmailError] = useState("");
   const [passError, setPassError] = useState("");
+  const [loginError, setLoginError] = useState("");
 
+  const handleLogin = async () => {
+    try {
+      setLoginError("");
+      if(validator(form.email) && pass_word_verify){
+        const response = await axios.post("/api/auth/login", form, {
+          withCredentials: true, //withcredentials is used
+          // to indicate that the request should include 
+          // credentials such as cookies, authorization headers, 
+          // or TLS client certificates.
+        });
+      }
+
+      console.log(response.data);
+      navigate("/");
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setLoginError(
+        error.response?.data?.message || "Login failed. Please try again."
+      );
+    }
+  };
+  
   useEffect(() => {
 
     const timer = setTimeout(() => {
@@ -110,22 +136,21 @@ export default function Login() {
             )}
         </div>
 
+        {loginError && (
+          <p style={{ color: "red", fontSize: "14px" }}>
+            {loginError}
+          </p>
+        )}
+
         <div className="forgot">Forgot password?</div>
 
         <button
           className="btn-primary"
           style={{ width: "100%" }}
-          onClick={() => navigate("/")}
+          onClick={handleLogin}
         >
           Sign In
         </button>
-
-        <div className="divider">or continue with</div>
-
-        <div className="social-row">
-          <button className="btn-ghost">Google</button>
-          <button className="btn-ghost">GitHub</button>
-        </div>
       </div>
     </div>
   );

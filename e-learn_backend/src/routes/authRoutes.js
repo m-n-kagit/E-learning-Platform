@@ -14,6 +14,7 @@ router.post("/verify-otp", authcontroller.verifyOTP);
 router.post("/login", authcontroller.loginUser); // sending file in json format so that 
 // we can easily access it in frontend and also for security 
 // purpose we are not sending the password in response
+router.post("/logout", authcontroller.logoutUser);
 router.post("/forget-password", authcontroller.forget_pass);
 router.post("/verify-otp-forget-password", authcontroller.verifyOTP_forget_password);
 router.post("/enter-new-password", authcontroller.Enter_new_password);

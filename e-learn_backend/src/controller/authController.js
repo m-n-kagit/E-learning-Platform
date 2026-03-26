@@ -7,6 +7,19 @@ import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/send_email.js";
 import pass_validator from "./pass_validator.js";
 
+const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 7 * 24 * 60 * 60 * 1000;
+
+const getCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production", // Only send cookies over HTTPS in production
+  sameSite: "lax", // Helps protect against CSRF attacks while allowing normal navigation
+  maxAge: cookieMaxAge,
+});
+
+const setTokenCookie = (res, userId) => {
+  res.cookie("token", generateToken(userId), getCookieOptions());
+};
+
 const registerUser = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -23,6 +36,7 @@ const registerUser = async (req, res, next) => {
     }
 
     const user = await User.create({ name, email, password });
+    setTokenCookie(res, user._id);
 
     res.status(201).json({
       success: true,
@@ -32,7 +46,6 @@ const registerUser = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id),
       },
     });
   } catch (error) {
@@ -91,6 +104,7 @@ const loginUser = async (req, res, next) => {
       res.status(401);
       throw new Error("Invalid email or password");
     }
+    setTokenCookie(res, user._id);
 
     res.status(200).json({
       success: true,
@@ -100,7 +114,6 @@ const loginUser = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id),
       },
     });
   } catch (error) {
@@ -215,6 +228,7 @@ const verifyOTP = async (req, res, next) => {
 
     await TempUser.deleteMany({ email });
     await OtpModel.deleteMany({ email });
+    setTokenCookie(res, user._id);
 
     res.status(200).json({
       success: true,
@@ -224,8 +238,24 @@ const verifyOTP = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id),
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const logoutUser = async (req, res, next) => {
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
     });
   } catch (error) {
     next(error);
@@ -349,6 +379,7 @@ export default {
   getMe,
   sendOTP,
   verifyOTP,
+  logoutUser,
   forget_pass,
   verifyOTP_forget_password,
   Enter_new_password

@@ -7,14 +7,15 @@ const tokenSecret =  process.env.ACCESS_TOKEN_SECRET;
 
 // ─── PROTECT MIDDLEWARE ───────────────────────────────────────────────────────
 // Verifies the JWT in the Authorization header.
-// If valid → attaches the decoded user to req.user and calls next().
-// If invalid/missing → throws 401.
+// If valid -> attaches the decoded user to req.user and calls next().
+// If invalid/missing -> throws 401.
 const protect = async (req, res, next) => { //next is used to pass the control to the next middleware in the stack.
   try {
-    let token;
+    let token = req.cookies?.token;
 
-    // JWT is expected as: "Authorization: Bearer <token>"
+    // Fall back to the Authorization header for non-browser clients.
     if (
+      !token &&
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer ") //Bearer token is a common convention
       //  for sending JWTs in the Authorization header. 
