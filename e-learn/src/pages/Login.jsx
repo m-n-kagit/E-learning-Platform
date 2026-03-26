@@ -19,14 +19,28 @@ export default function Login() {
   const handleLogin = async () => {
     try {
       setLoginError("");
-      if(validator(form.email) && pass_word_verify){
-        const response = await axios.post("/api/auth/login", form, {
-          withCredentials: true, //withcredentials is used
-          // to indicate that the request should include 
-          // credentials such as cookies, authorization headers, 
-          // or TLS client certificates.
-        });
+
+      if (!form.email || !form.password) {
+        setLoginError("Please enter both email and password.");
+        return;
       }
+
+      if (!validator(form.email)) {
+        setLoginError("Please enter a valid email address.");
+        return;
+      }
+
+      if (!pass_word_verify(form.password)) {
+        setLoginError("Please enter a valid password.");
+        return;
+      }
+
+      const response = await axios.post("/api/auth/login", form, {
+        withCredentials: true, //withcredentials is used
+        // to indicate that the request should include
+        // credentials such as cookies, authorization headers,
+        // or TLS client certificates.
+      });
 
       console.log(response.data);
       navigate("/");
@@ -142,7 +156,15 @@ export default function Login() {
           </p>
         )}
 
-        <div className="forgot">Forgot password?</div>
+        <div className="forgot" >
+          <Link
+            to="/forget-password"
+            state={{ fromLogin: true }}
+            className="auth-link"
+          >
+            Forgot password?
+          </Link>
+        </div>
 
         <button
           className="btn-primary"

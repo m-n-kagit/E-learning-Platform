@@ -7,6 +7,7 @@ import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Validate_otp from "./pages/Validate_otp";
+import Forget_Password from "./pages/Forget_Password";
 import './styles.css'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/explore" element={<Explore />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/login"   element={<Login />}   />
+        <Route path="/forget-password" element={<Forget_Password />} />
         <Route path="/signup"  element={<Signup />}  />
         <Route path="/validate-otp" element={<Validate_otp />} />
       </Routes>

@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser"; //cookies acces and can be set
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
 import errorHandler from "./middlewares/errorMiddleware.js";
+import rateLimiter from "./utils/rate-limiter.js";
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ app.use(cors({
 }))
 
 
-
+app.use("/api/auth",rateLimiter.auth_limiter) // Apply rate limiting to auth routes
 app.use(express.json({limit : "16kb"})) // for resistng website crash beacuse of overloading
 app.use(express.urlencoded({extended: true, limit: "16kb"})) //for parsing url encoded data from html forms 
 // and also for resisting website crash beacuse of overloading
@@ -24,6 +25,7 @@ app.use(cookieParser())
 //before the data is passed 
 // Mount auth routes
 app.use("/api/auth", authRoutes);
+
 
 // Global error handler — MUST be last middleware
 app.use(errorHandler);
