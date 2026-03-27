@@ -23,4 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 # dotenv environment variables file
-../e-learn_backend/.env
+./e-learn_backend/.env

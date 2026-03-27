@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import TempUser from "../models/Temp_user.js";
 import OtpModel from "../models/Otp.js";
 import User from "../models/User.js";
@@ -9,16 +10,18 @@ import pass_validator from "./pass_validator.js";
 import uploadCloudinary from "../utils/cloudinery.js";
 
 const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 7 * 24 * 60 * 60 * 1000;
+const resetPasswordCookieMaxAge = 10 * 60 * 1000;
+const tokenSecret = process.env.ACCESS_TOKEN_SECRET;
 
-const getCookieOptions = () => ({
+const getCookieOptions = (maxAge = cookieMaxAge) => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === "production", // Only send cookies over HTTPS in production
   sameSite: "lax", // Helps protect against CSRF attacks while allowing normal navigation
-  maxAge: cookieMaxAge,
+  maxAge,
 });
 
-const setTokenCookie = (res, userId) => {
-  res.cookie("token", generateToken(userId), getCookieOptions());
+const setTokenCookie = (res, userId, maxAge = cookieMaxAge, options = {}) => {
+  res.cookie("token", generateToken(userId, options), getCookieOptions(maxAge));
 };
 
 const registerUser = async (req, res, next) => {
@@ -323,13 +326,22 @@ const verifyOTP_forget_password = async (req, res, next) => {
       throw new Error("Please provide email and otp");
     }
 
-    const record = await OtpModel.findOne({ email }); // findOne returns null if not found, while find returns an empty array
+    const record = await OtpModel.findOne({
+      email,
+      isVerify: false,
+    }).sort({ createdAt: -1 });
+
     if (!record) {
       res.status(400);
       throw new Error("OTP expired or not found. Request a new one.");
     }
 
-    const isMatch = await bcrypt.compare(otp, record.hashedOTP);
+    if (!record.hashedOTP) {
+      res.status(500);
+      throw new Error("Stored OTP is invalid. Please request a new one.");
+    }
+
+    const isMatch = await bcrypt.compare(String(otp).trim(), record.hashedOTP);
     if (!isMatch) {
       res.status(400);
       throw new Error("Invalid OTP");
@@ -341,14 +353,18 @@ const verifyOTP_forget_password = async (req, res, next) => {
       res.status(400);
       throw new Error("User not found. Register first.");
     }
-    
-    await OtpModel.deleteMany({ email });
+
+    record.isVerify = true;
+    await record.save();
+    setTokenCookie(res, user._id, resetPasswordCookieMaxAge, {
+      purpose: "reset-password",
+      expiresIn: `${Math.floor(resetPasswordCookieMaxAge / 1000)}s`,
+    });
+
     res.status(200).json({
       success: true,
       message: "OTP verified successfully. You can now reset your password.",
     });
-    await record.save();
-    
   } catch (error) {
     next(error);
   }
@@ -363,9 +379,25 @@ const Enter_new_password = async(req, res, next) => {
     }
 
     
-    if (!new_password && !pass_validator(new_password)){
+    if (!new_password || !pass_validator(new_password)){
       res.status(400); // bad request 
       throw new Error("The provided new password is invalid or empty.");
+    }
+
+    const token = req.cookies?.token;
+    if (!token) {
+      res.status(401);
+      throw new Error("Password reset session expired. Verify OTP again.");
+    }
+
+    if (!tokenSecret) {
+      throw new Error("JWT secret is missing from environment variables");
+    }
+
+    const decoded = jwt.verify(token, tokenSecret);
+    if (decoded.purpose !== "reset-password") {
+      res.status(401);
+      throw new Error("This token cannot be used for password reset.");
     }
 
     const user = await User.findOne({email})
@@ -373,9 +405,16 @@ const Enter_new_password = async(req, res, next) => {
       res.status(400);
       throw new Error("User not found. Register first.");
     }
+
+    if (String(user._id) !== String(decoded.id)) {
+      res.status(403);
+      throw new Error("You are not authorized to reset this password.");
+    }
+
     user.password = new_password;
     await user.save();
     await OtpModel.deleteMany({ email });
+    res.clearCookie("token", getCookieOptions(0));
     res.status(200).json({
       success: true,
       message: "Password updated successfully",

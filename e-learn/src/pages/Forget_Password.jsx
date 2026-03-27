@@ -2,15 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import validator from "./user_validator.js";
-import pass_word_verify from "./pass_validator.js";
 
 function Forget_Password() {
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
   const [requestError, setRequestError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,21 +33,6 @@ function Forget_Password() {
     return () => clearTimeout(timer);
   }, [email]);
 
-
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!password) {
-        setPasswordError("");
-        return;
-      }
-
-      setPasswordError(pass_word_verify(password) ? "" : "Invalid password format");
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [password]);
-
   const handleSendOtp = async () => {
     try {
       setRequestError("");
@@ -72,6 +54,8 @@ function Forget_Password() {
         { email },
         { withCredentials: true }
       );
+
+      alert("OTP sent successfully to your email.");
 
       navigate("/validate-otp", {
         state: {

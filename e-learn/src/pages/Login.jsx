@@ -43,6 +43,7 @@ export default function Login() {
       });
 
       console.log(response.data);
+      alert(response.data.message || "Logged in successfully.");
       navigate("/");
     } catch (error) {
       console.error("Error fetching data:", error);

@@ -37,10 +37,16 @@ const protect = async (req, res, next) => { //next is used to pass the control t
 
     const decoded = jwt.verify(token, tokenSecret);
 
+    if (decoded.purpose && decoded.purpose !== "auth") {
+      res.status(401);
+      throw new Error("This token cannot be used for authenticated app access");
+    }
+
     // Fetch the real user from DB (to ensure the account still exists)
     // select("-password") is redundant here since model has select:false,
     // but it's explicit and clear — good engineering practice.
     req.user = await User.findById(decoded.id).select("-password"); //excluded password
+    req.auth = decoded;
 
     if (!req.user) {
       res.status(401);

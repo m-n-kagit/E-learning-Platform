@@ -75,11 +75,16 @@ export default function Validate_otp() {
       );
 
       if (mode === "reset-password") {
+        alert(
+          response.data.message ||
+            "OTP verified successfully. You can now reset your password."
+        );
         setIsOtpVerified(true);
         return;
       }
 
-      setTimeout(() => navigate("/"), 1200);
+      alert(response.data.message || "Signup completed successfully.");
+      setTimeout(() => navigate("/login"), 1200);
     } catch (error) {
       console.error("Error verifying OTP:", error);
       setOtpError(
@@ -106,9 +111,9 @@ export default function Validate_otp() {
         { email },
         { withCredentials: true }
       );
-      is_processed = true;
 
       setOtpSuccess(response.data.message || "OTP sent successfully.");
+      alert(response.data.message || "OTP sent successfully.");
     } catch (error) {
       console.error("Error resending OTP:", error);
       setOtpError(
@@ -157,6 +162,7 @@ export default function Validate_otp() {
       );
 
       setPasswordSuccess(response.data.message || "Password updated successfully.");
+      alert(response.data.message || "Password updated successfully.");
       setTimeout(() => navigate("/login"), 1200);
     } catch (error) {
       console.error("Error updating password:", error);
