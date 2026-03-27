@@ -3,12 +3,12 @@
 :root {
   /* ── Palette (as specified) ── */
   --bg:         #e9efdc;   /* page background        */
-  --card:       #B3F6B9;   /* card surface           */
-  --card-hover: #7EB56B;   /* card hover             */
+  --card:       #aedc9f;   /* card surface           */
+  --card-hover: #70ab5d;   /* card hover             */
   --header:     #7EB56B;   /* navbar / header        */
 
   /* Derived shades */
-  --bg-deep:    #a3bc6a;   /* deeper bg for alt sections */
+  --bg-deep:    #7EB56B;;   /* deeper bg for alt sections */
   --border:     rgba(0, 0, 0, 0.10);
   --border-med: rgba(0, 0, 0, 0.16);
 
@@ -191,19 +191,38 @@ button { font-family: 'Inter', sans-serif; cursor: pointer; }
 
 /* ── COURSES ── */
 .courses-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
-  max-width: 1100px; background: var(--border-med);
-  border: 1px solid var(--border-med); border-radius: 10px; overflow: hidden;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;
+  max-width: 1100px;
 }
-.course-card { background: var(--card); padding: 1.8rem; transition: background 0.2s; cursor: pointer; }
+.course-card {
+  background: var(--card); padding: 1.8rem; transition: background 0.2s; cursor: pointer;
+  border: 1px solid var(--border-med); border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+}
 .course-card:hover { background: var(--card-hover); }
 .course-card:hover .cc-name,
 .course-card:hover .cc-desc { color: #fff; }
 .course-card:hover .cc-cat   { color: rgba(255,255,255,0.85); }
 .course-card:hover .cc-level { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.18); }
 
-.cc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.cc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 0.5rem; }
 .cc-icon { font-size: 1.8rem; }
+.cc-images {
+  width: 100%;
+  max-width: 210px;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 10px;
+  /* border: 1px solid var(--border-med); */
+}
+.cc-image {
+  width: 100%;
+  max-width: 410px;
+  height: 320px;
+  object-fit: fill;
+  border-radius: 10px;
+  /* border: 1px solid var(--border-med); */
+}
 .cc-level {
   font-size: 0.7rem; font-weight: 500; color: var(--text-muted);
   background: rgba(0,0,0,0.07); padding: 0.2rem 0.6rem;
@@ -289,15 +308,25 @@ button { font-family: 'Inter', sans-serif; cursor: pointer; }
 .search-input::placeholder { color: var(--text-muted); }
 
 .cat-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
-  background: var(--border-med); border: 1px solid var(--border-med);
-  border-radius: 10px; overflow: hidden;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;
 }
-.cat-card { background: var(--card); padding: 1.8rem; transition: background 0.2s; cursor: pointer; }
+.cat-card {
+  background: var(--card); padding: 1.8rem; transition: background 0.2s; cursor: pointer;
+  border: 1px solid var(--border-med); border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+}
 .cat-card:hover { background: var(--card-hover); }
 .cat-card:hover .cat-name  { color: #fff; }
 .cat-card:hover .cat-count { color: rgba(255,255,255,0.8); }
 .cat-emoji { font-size: 1.8rem; margin-bottom: 0.8rem; }
+.cat-image {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-med);
+}
 .cat-name  { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; color: var(--text-primary); transition: color 0.2s; }
 .cat-count { font-size: 0.78rem; color: var(--accent); transition: color 0.2s; }
 

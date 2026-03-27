@@ -4,10 +4,11 @@ const router = express.Router();
 import authcontroller from "../controller/authController.js"
 import protect from "../middlewares/authMiddleware.js";
 import rateLimiter from "../utils/rate-limiter.js";
+import { upload } from "../middlewares/multer.js";
 
 // Public routes
 // router.post("/register", authcontroller.registerUser);
-router.post("/register-temp", authcontroller.registerTempUser);
+router.post("/register-temp", upload.single("verificationDocument"), authcontroller.registerTempUser);
 router.post("/send-otp", authcontroller.sendOTP);
 router.post("/verify-otp",rateLimiter.login_limiter, authcontroller.verifyOTP);
 router.post("/login",rateLimiter.login_limiter, authcontroller.loginUser); // sending file in json format so that 

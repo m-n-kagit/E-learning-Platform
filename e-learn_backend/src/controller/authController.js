@@ -6,6 +6,7 @@ import generateOTP from "../utils/generateOtp.js";
 import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/send_email.js";
 import pass_validator from "./pass_validator.js";
+import uploadCloudinary from "../utils/cloudinery.js";
 
 const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 7 * 24 * 60 * 60 * 1000;
 
@@ -55,11 +56,24 @@ const registerUser = async (req, res, next) => {
 
 const registerTempUser = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role, adminPhoneNumber } = req.body;
+    const normalizedRole = role === "admin" ? "admin" : "student";
 
     if (!name || !email || !password) {
       res.status(400);
       throw new Error("Please provide name, email, and password");
+    }
+
+    if (normalizedRole === "admin") {
+      if (!adminPhoneNumber) {
+        res.status(400);
+        throw new Error("Please provide an admin contact number");
+      }
+
+      if (!req.file) {
+        res.status(400);
+        throw new Error("Please upload a PDF verification document for admin signup");
+      }
     }
 
     const userExists = await User.findOne({ email });
@@ -71,7 +85,26 @@ const registerTempUser = async (req, res, next) => {
     await TempUser.deleteMany({ email });
     await OtpModel.deleteMany({ email });
 
-    const tempUser = await TempUser.create({ name, email, password });
+    let adminDocument = null;
+
+    if (normalizedRole === "admin" && req.file?.path) {
+      adminDocument = await uploadCloudinary(req.file.path);
+
+      if (!adminDocument?.secure_url) {
+        res.status(500);
+        throw new Error("Unable to upload admin verification document right now");
+      }
+    }
+
+    const tempUser = await TempUser.create({
+      name,
+      email,
+      password,
+      role: normalizedRole,
+      adminPhoneNumber: normalizedRole === "admin" ? adminPhoneNumber : "",
+      adminDocumentUrl: adminDocument?.secure_url || "",
+      adminDocumentPublicId: adminDocument?.public_id || "",
+    });
 
     res.status(201).json({
       success: true,
@@ -81,6 +114,8 @@ const registerTempUser = async (req, res, next) => {
         name: tempUser.name,
         email: tempUser.email,
         role: tempUser.role,
+        adminPhoneNumber: tempUser.adminPhoneNumber,
+        adminDocumentUrl: tempUser.adminDocumentUrl,
         expiresAt: tempUser.expiresAt,
       },
     });
@@ -191,17 +226,29 @@ const verifyOTP = async (req, res, next) => {
       throw new Error("Please provide email and otp");
     }
 
-    const record = await OtpModel.findOne({ email }); // findOne returns null if not found, while find returns an empty array
+    const record = await OtpModel.findOne({
+      email,
+      isVerify: false,
+    }).sort({ createdAt: -1 });
+
     if (!record) {
       res.status(400);
       throw new Error("OTP expired or not found. Request a new one.");
     }
 
-    const isMatch = await bcrypt.compare(otp, record.hashedOTP);
+    if (!record.hashedOTP) {
+      res.status(500);
+      throw new Error("Stored OTP is invalid. Please request a new one.");
+    }
+
+    const isMatch = await bcrypt.compare(String(otp).trim(), record.hashedOTP);
     if (!isMatch) {
       res.status(400);
       throw new Error("Invalid OTP");
     }
+
+    record.isVerify = true;
+    await record.save();
 
     const tempUser = await TempUser.findOne({ email }).select("+password");
     if (!tempUser) {
@@ -222,13 +269,16 @@ const verifyOTP = async (req, res, next) => {
       email: tempUser.email,
       password: tempUser.password,
       role: tempUser.role,
+      adminPhoneNumber: tempUser.adminPhoneNumber,
+      adminDocumentUrl: tempUser.adminDocumentUrl,
+      adminDocumentPublicId: tempUser.adminDocumentPublicId,
     });
     user.$locals = { passwordAlreadyHashed: true };
     await user.save();
 
     await TempUser.deleteMany({ email });
     await OtpModel.deleteMany({ email });
-    setTokenCookie(res, user._id);
+    // setTokenCookie(res, user._id); not setting token cookie after registration 
 
     res.status(200).json({
       success: true,
@@ -284,17 +334,21 @@ const verifyOTP_forget_password = async (req, res, next) => {
       res.status(400);
       throw new Error("Invalid OTP");
     }
+    record.isVerify = true;
 
     const user = await User.findOne({ email });
     if (!user) {
       res.status(400);
       throw new Error("User not found. Register first.");
     }
-
+    
+    await OtpModel.deleteMany({ email });
     res.status(200).json({
       success: true,
       message: "OTP verified successfully. You can now reset your password.",
     });
+    await record.save();
+    
   } catch (error) {
     next(error);
   }

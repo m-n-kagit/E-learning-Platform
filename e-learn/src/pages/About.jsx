@@ -1,11 +1,5 @@
 import Footer from "../components/Footer";
-
-const team = [
-  { e: "👨‍💼", n: "Alex Rivera",  r: "CEO & Co-Founder"   },
-  { e: "👩‍💻", n: "Priya Sharma", r: "Head of Curriculum" },
-  { e: "🧑‍🏫", n: "James Wu",     r: "Lead Instructor"    },
-  { e: "👩‍🎨", n: "Mia Chen",     r: "Head of Design"     },
-];
+import About_image from "../images/About_image.jpg";
 
 const features = [
   "Self-paced, flexible learning for busy schedules",
@@ -30,7 +24,9 @@ export default function About() {
 
       <div className="about-body">
         <div className="about-grid">
-          <div className="about-box">🌐</div>
+          <div className="about-box">
+            <img src={About_image} alt="About LearnSphere" className="cc-image"/>
+          </div>
           <div className="about-text">
             <h2>Our Mission</h2>
             <p>
@@ -52,17 +48,7 @@ export default function About() {
           </div>
         </div>
 
-        <div className="section-label" style={{ marginBottom: "0.6rem" }}>The Team</div>
-        <h2 className="section-title" style={{ marginBottom: "1.5rem" }}>Meet the People Behind It</h2>
-        <div className="team-grid">
-          {team.map((m) => (
-            <div className="team-card" key={m.n}>
-              <div className="team-emoji">{m.e}</div>
-              <div className="team-name">{m.n}</div>
-              <div className="team-role">{m.r}</div>
-            </div>
-          ))}
-        </div>
+        <div className="section-label" style={{ marginBottom: "0.6rem" }}>Developed by Eng. Mohit Sharma</div>    
       </div>
 
       <Footer />

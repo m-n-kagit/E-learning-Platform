@@ -5,7 +5,14 @@ import validator from "./user_validator.js";
 import pass_word_verify from "./pass_validator.js";
 export default function Signup() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "student",
+    adminPhoneNumber: "",
+    verificationDocument: null,
+  });
   const [signupError, setSignupError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passError, setPassError] = useState("");
@@ -19,7 +26,30 @@ export default function Signup() {
         return;
       }
 
-      await axios.post("/api/auth/register-temp", form, {
+      if (form.role === "admin") {
+        if (!form.adminPhoneNumber) {
+          setSignupError("Please provide an admin contact number.");
+          return;
+        }
+
+        if (!form.verificationDocument) {
+          setSignupError("Please upload a PDF verification document for admin signup.");
+          return;
+        }
+      }
+
+      const signupFormData = new FormData();
+      signupFormData.append("name", form.name);
+      signupFormData.append("email", form.email);
+      signupFormData.append("password", form.password);
+      signupFormData.append("role", form.role);
+
+      if (form.role === "admin") {
+        signupFormData.append("adminPhoneNumber", form.adminPhoneNumber);
+        signupFormData.append("verificationDocument", form.verificationDocument);
+      }
+
+      await axios.post("/api/auth/register-temp", signupFormData, {
         withCredentials: true,
       });
 
@@ -101,7 +131,7 @@ export default function Signup() {
           <label className="form-label">Full Name</label>
           <input
             className="form-input"
-            value={form.name} placeholder="Monika Deol"
+            value={form.name} placeholder="Mohit Sharma"
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
         </div>
@@ -131,6 +161,60 @@ export default function Signup() {
             </p>
           )}
         </div>
+
+        <div className="form-group">
+          <label className="form-label">Role</label>
+          <select
+            className="form-input"
+            value={form.role}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                role: e.target.value,
+                adminPhoneNumber: e.target.value === "admin" ? form.adminPhoneNumber : "",
+                verificationDocument: e.target.value === "admin" ? form.verificationDocument : null,
+              })
+            }
+          >
+            <option value="student">Student</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        {form.role === "admin" && (
+          <>
+            <div className="form-group">
+              <label className="form-label">Admin Contact Number</label>
+              <input
+                className="form-input"
+                type="tel"
+                value={form.adminPhoneNumber}
+                placeholder="Enter your contact number"
+                onChange={(e) =>
+                  setForm({ ...form, adminPhoneNumber: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Verification Document (PDF)</label>
+              <input
+                className="form-input"
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    verificationDocument: e.target.files?.[0] || null,
+                  })
+                }
+              />
+              <p className="terms">
+                Upload an admin verification document in PDF format before continuing to OTP.
+              </p>
+            </div>
+          </>
+        )}
 
         <p className="terms">
           By signing up you agree to our <span>Terms of Service</span> and <span>Privacy Policy</span>.

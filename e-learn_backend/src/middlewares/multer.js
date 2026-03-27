@@ -1,19 +1,37 @@
-import multer from "multer"
+import fs from "fs";
+import path from "path";
+import multer from "multer";
+
+const tempDir = path.resolve(process.cwd(), "public", "temp");
+fs.mkdirSync(tempDir, { recursive: true });
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, '/public/temp')
+    cb(null, tempDir);
   },
   filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)//unique suffix is 
-    // generated using the current timestamp and a random number to ensure
-    //  that each uploaded file has a unique name, preventing overwriting 
-    // of existing files with the same name.
-    cb(null, file.fieldname + '-' + uniqueSuffix) //generate a unique filename using the original fieldname and a unique suffix based on the current timestamp and a random number
-  }//cb - callback function that takes an error 
-  // (if any) and the generated filename as arguments. 
-  // If there is no error, the first argument should be null, 
-  // and the second argument should be the generated filename. 
-  // This allows multer to save the uploaded file with the specified filename in the destination directory.
-})
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+  },
+});
 
-export const upload = multer({ storage: storage })
+const fileFilter = (req, file, cb) => {
+  const isPdf =
+    file.mimetype === "application/pdf" ||
+    path.extname(file.originalname).toLowerCase() === ".pdf";
+
+  if (!isPdf) {
+    cb(new Error("Only PDF documents are allowed for admin verification."));
+    return;
+  }
+
+  cb(null, true);
+};
+
+export const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+});

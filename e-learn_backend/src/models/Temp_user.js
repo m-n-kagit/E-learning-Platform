@@ -25,8 +25,20 @@ const tempUserSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin", "course_admin"],
-      default: "user",
+      enum: ["user", "student", "admin", "course_admin"],
+      default: "student",
+    },
+    adminPhoneNumber: {
+      type: String,
+      trim: true,
+    },
+    adminDocumentUrl: {
+      type: String,
+      trim: true,
+    },
+    adminDocumentPublicId: {
+      type: String,
+      trim: true,
     },
     expiresAt: {
       type: Date,

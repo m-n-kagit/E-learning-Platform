@@ -106,6 +106,7 @@ export default function Validate_otp() {
         { email },
         { withCredentials: true }
       );
+      is_processed = true;
 
       setOtpSuccess(response.data.message || "OTP sent successfully.");
     } catch (error) {
@@ -151,7 +152,8 @@ export default function Validate_otp() {
           email,
           new_password: passwordForm.newPassword,
         },
-        { withCredentials: true }
+        { withCredentials: true }//withcredentials is used
+        //  to include cookies in the request for authentication
       );
 
       setPasswordSuccess(response.data.message || "Password updated successfully.");
@@ -223,7 +225,7 @@ export default function Validate_otp() {
               padding: 0,
             }}
           >
-            Resend OTP
+           {isOtpVerified ? "" : "Resend OTP"  } 
           </button>
         </p>
 
@@ -239,7 +241,7 @@ export default function Validate_otp() {
           </p>
         )}
 
-        <button className="btn-primary" style={{ width: "100%" }} onClick={handleotp}>
+        <button className="btn-primary" style={{ width: "100%" }} onClick={handleotp} disabled={isOtpVerified}>
           Verify Code
         </button>
 
