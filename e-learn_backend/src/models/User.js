@@ -48,7 +48,11 @@ const userSchema = new mongoose.Schema(
 // Hash password BEFORE saving to DB.
 // This runs on .save() — not on .findByIdAndUpdate()
 
-userSchema.pre("save", async function () { 
+userSchema.pre("save", async function () {  //this refers to the
+//  user document being saved , pre here 
+// indicates that this function should run before the document
+//  is saved to the database.
+
   // Only hash if password field was actually modified
   if (!this.isModified("password") || this.$locals?.passwordAlreadyHashed) return;
 
@@ -56,7 +60,7 @@ userSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// ─── INSTANCE METHOD ─────────────────────────────────────────────────────────
+// INSTANCE METHOD 
 // Compare entered password with stored hashed password
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);

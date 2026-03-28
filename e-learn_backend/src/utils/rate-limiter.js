@@ -1,5 +1,6 @@
 import { rateLimit } from 'express-rate-limit'
 
+
 const auth_limiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // for 15 minutes the user can make 100 requests
 	limit: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)

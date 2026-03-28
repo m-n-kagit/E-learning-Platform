@@ -18,7 +18,9 @@ const uploadCloudinary = async (filePath) => {
     if (!filePath) return null;
 
     const response = await cloudinary.uploader.upload(filePath, {
-      resource_type: "raw",
+      resource_type: "raw",// this states that the file being
+      //  uploaded is a raw file (not an image or video) 
+      // which is suitable for documents like PDFs, Word files, etc.
       folder: "admin-verification-documents",
     });
 

@@ -16,17 +16,34 @@ export default function Signup() {
   const [signupError, setSignupError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passError, setPassError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
  
   const handleSignup = async () => {
     try {
       setSignupError("");
+      setEmailError("");
+      setPassError("");
 
       if (!form.name || !form.email || !form.password) {
         setSignupError("Please fill in all fields.");
         return;
       }
 
-      if (form.role === "admin") {
+      if (!validator(form.email)) {
+        setEmailError("Invalid email format");
+        setSignupError("Please enter a valid email address.");
+        return;
+      }
+
+      if (!pass_word_verify(form.password)) {
+        setPassError(
+          "Password must be at least 8 characters long and include uppercase, lowercase, a number, and a special character."
+        );
+        setSignupError("Please enter a stronger password.");
+        return;
+      }
+
+      if (form.role === "course_admin") {
         if (!form.adminPhoneNumber) {
           setSignupError("Please provide an admin contact number.");
           return;
@@ -36,15 +53,26 @@ export default function Signup() {
           setSignupError("Please upload a PDF verification document for admin signup.");
           return;
         }
+
+        const isPdf =
+          form.verificationDocument.type === "application/pdf" ||
+          form.verificationDocument.name.toLowerCase().endsWith(".pdf");
+
+        if (!isPdf) {
+          setSignupError("Only PDF documents are allowed for admin signup.");
+          return;
+        }
       }
+
+      setIsSubmitting(true);
 
       const signupFormData = new FormData();
       signupFormData.append("name", form.name);
       signupFormData.append("email", form.email);
       signupFormData.append("password", form.password);
-      signupFormData.append("role", form.role);
+      signupFormData.append("role", form.role); 
 
-      if (form.role === "admin") {
+      if (form.role === "course_admin") {
         signupFormData.append("adminPhoneNumber", form.adminPhoneNumber);
         signupFormData.append("verificationDocument", form.verificationDocument);
       }
@@ -60,13 +88,15 @@ export default function Signup() {
       );
 
       navigate("/validate-otp", {
-        state: { email: form.email },
+        state: { email: form.email, mode: "signup" },
       });
     } catch (error) {
       console.error("Error creating account:", error);
       setSignupError(
         error.response?.data?.message || "Unable to continue signup right now."
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -171,17 +201,17 @@ export default function Signup() {
               setForm({
                 ...form,
                 role: e.target.value,
-                adminPhoneNumber: e.target.value === "admin" ? form.adminPhoneNumber : "",
-                verificationDocument: e.target.value === "admin" ? form.verificationDocument : null,
+                adminPhoneNumber: e.target.value === "course_admin" ? form.adminPhoneNumber : "",
+                verificationDocument: e.target.value === "course_admin" ? form.verificationDocument : null,
               })
             }
           >
             <option value="student">Student</option>
-            <option value="admin">Admin</option>
+            <option value="course_admin">Course Admin</option>
           </select>
         </div>
 
-        {form.role === "admin" && (
+        {form.role === "course_admin" && (
           <>
             <div className="form-group">
               <label className="form-label">Admin Contact Number</label>
@@ -206,7 +236,8 @@ export default function Signup() {
                   setForm({
                     ...form,
                     verificationDocument: e.target.files?.[0] || null,
-                  })
+                  })//the index value of 0 is taken here because
+                  //  the file input allows for multiple files to be selected, but in this case we only want one file (the first one) to be uploaded as the verification document.
                 }
               />
               <p className="terms">
@@ -226,8 +257,8 @@ export default function Signup() {
           </p>
         )}
 
-        <button className="btn-primary" style={{ width: "100%" }} onClick={handleSignup}>
-          Create Account
+        <button className="btn-primary" style={{ width: "100%" }} onClick={handleSignup} disabled={isSubmitting}>
+          {isSubmitting ? "Creating Account..." : "Create Account"}
         </button>
 
         <div className="divider">or sign up with</div>

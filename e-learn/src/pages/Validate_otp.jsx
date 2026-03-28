@@ -110,7 +110,7 @@ export default function Validate_otp() {
         endpoint,
         { email },
         { withCredentials: true }
-      );
+      );// cookie is automatically included in the request for authentication
 
       setOtpSuccess(response.data.message || "OTP sent successfully.");
       alert(response.data.message || "OTP sent successfully.");

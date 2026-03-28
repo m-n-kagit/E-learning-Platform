@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import dns from "dns/promises";
 import jwt from "jsonwebtoken";
 import TempUser from "../models/Temp_user.js";
 import OtpModel from "../models/Otp.js";
@@ -10,8 +11,51 @@ import pass_validator from "./pass_validator.js";
 import uploadCloudinary from "../utils/cloudinery.js";
 
 const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 7 * 24 * 60 * 60 * 1000;
-const resetPasswordCookieMaxAge = 10 * 60 * 1000;
+const resetPasswordCookieMaxAge = 10 * 60 * 1000; // 10 minutes for password reset token
 const tokenSecret = process.env.ACCESS_TOKEN_SECRET;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const validateDeliverableEmail = async (email) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  if (!emailPattern.test(normalizedEmail)) {
+    return {
+      isValid: false,
+      message: "Please provide a valid email address.",
+    };
+  }
+
+  const [, domain] = normalizedEmail.split("@");
+
+  try {
+    const mxRecords = await dns.resolveMx(domain);
+
+    if (mxRecords.length > 0) {
+      return { isValid: true, normalizedEmail };
+    }
+  } catch (error) {
+    if (!["ENODATA", "ENOTFOUND", "ENODOMAIN", "ESERVFAIL", "ETIMEOUT"].includes(error?.code)) {
+      throw error;
+    }
+  }
+
+  try {
+    const ipv4Records = await dns.resolve4(domain);
+
+    if (ipv4Records.length > 0) {
+      return { isValid: true, normalizedEmail };
+    }
+  } catch (error) {
+    if (!["ENODATA", "ENOTFOUND", "ENODOMAIN", "ESERVFAIL", "ETIMEOUT"].includes(error?.code)) {
+      throw error;
+    }
+  }
+
+  return {
+    isValid: false,
+    message: "This email domain cannot receive messages. Please check the email and try again.",
+  };
+};
 
 const getCookieOptions = (maxAge = cookieMaxAge) => ({
   httpOnly: true,
@@ -57,17 +101,25 @@ const registerUser = async (req, res, next) => {
   }
 };
 
-const registerTempUser = async (req, res, next) => {
+const registerTempUser = async (req, res, next) => { //for course admin
   try {
     const { name, email, password, role, adminPhoneNumber } = req.body;
-    const normalizedRole = role === "admin" ? "admin" : "student";
+    const normalizedRole = role === "course_admin" ? "course_admin" : "student";
 
     if (!name || !email || !password) {
       res.status(400);
       throw new Error("Please provide name, email, and password");
     }
 
-    if (normalizedRole === "admin") {
+    const emailValidation = await validateDeliverableEmail(email);
+    if (!emailValidation.isValid) {
+      res.status(400);
+      throw new Error(emailValidation.message);
+    }
+
+    const normalizedEmail = emailValidation.normalizedEmail;
+
+    if (normalizedRole === "course_admin") {
       if (!adminPhoneNumber) {
         res.status(400);
         throw new Error("Please provide an admin contact number");
@@ -79,18 +131,18 @@ const registerTempUser = async (req, res, next) => {
       }
     }
 
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: normalizedEmail });
     if (userExists) {
       res.status(409);
       throw new Error("An account with this email already exists");
     }
 
-    await TempUser.deleteMany({ email });
-    await OtpModel.deleteMany({ email });
+    await TempUser.deleteMany({ email: normalizedEmail });
+    await OtpModel.deleteMany({ email: normalizedEmail });
 
     let adminDocument = null;
 
-    if (normalizedRole === "admin" && req.file?.path) {
+    if (normalizedRole === "course_admin" && req.file?.path) {
       adminDocument = await uploadCloudinary(req.file.path);
 
       if (!adminDocument?.secure_url) {
@@ -101,10 +153,10 @@ const registerTempUser = async (req, res, next) => {
 
     const tempUser = await TempUser.create({
       name,
-      email,
+      email: normalizedEmail,
       password,
       role: normalizedRole,
-      adminPhoneNumber: normalizedRole === "admin" ? adminPhoneNumber : "",
+      adminPhoneNumber: normalizedRole === "course_admin" ? adminPhoneNumber : "",
       adminDocumentUrl: adminDocument?.secure_url || "",
       adminDocumentPublicId: adminDocument?.public_id || "",
     });
@@ -119,7 +171,7 @@ const registerTempUser = async (req, res, next) => {
         role: tempUser.role,
         adminPhoneNumber: tempUser.adminPhoneNumber,
         adminDocumentUrl: tempUser.adminDocumentUrl,
-        expiresAt: tempUser.expiresAt,
+        expiresAt: tempUser.expiresAt
       },
     });
   } catch (error) {
@@ -193,22 +245,33 @@ const sendOTP = async (req, res, next) => {
       throw new Error("Please provide email");
     }
 
-    const tempUser = await TempUser.findOne({ email });
+    const emailValidation = await validateDeliverableEmail(email);
+    if (!emailValidation.isValid) {
+      res.status(400);
+      throw new Error(emailValidation.message);
+    }
+
+    const normalizedEmail = emailValidation.normalizedEmail;
+
+    const tempUser = await TempUser.findOne({ email: normalizedEmail });
     if (!tempUser) {
       res.status(400);
       throw new Error("Temporary registration not found or expired. Register again first.");
     }
 
-    // await OtpModel.deleteMany({ email });
-
     const { otp, hashedOTP } = await generateOTP();
-    await OtpModel.create({ email, hashedOTP });
-
-    await sendEmail({
-      to: email,
+    const emailResult = await sendEmail({
+      to: normalizedEmail,
       subject: "Your OTP Code",
       html: `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 5 minutes only.</p>`,
     });
+
+    if (!emailResult?.accepted?.includes(normalizedEmail)) {
+      res.status(502);
+      throw new Error("OTP email could not be delivered. Please try again.");
+    }
+
+    await OtpModel.create({ email: normalizedEmail, hashedOTP });
 
     res.status(200).json({
       success: true,
@@ -438,18 +501,31 @@ const forget_pass = async(req, res,next) => {
         res.status(400);
         throw new Error("Please provide email");
       }
-      const record = await User.findOne({ email });
+      const emailValidation = await validateDeliverableEmail(email);
+      if (!emailValidation.isValid) {
+        res.status(400);
+        throw new Error(emailValidation.message);
+      }
+      const normalizedEmail = emailValidation.normalizedEmail;
+      const record = await User.findOne({ email: normalizedEmail });
       if(!record){
         res.status(400);
         throw new Error("User with this email does not exist");
       }
       const { otp, hashedOTP } = await generateOTP();
-      await OtpModel.create({ email, hashedOTP });
-      await sendEmail({
-        to: email,
+      const emailResult = await sendEmail({
+        to: normalizedEmail,
         subject: "Your Password Reset OTP",
         html: `<h2>Your OTP for password reset is: <strong>${otp}</strong></h2><p>Valid for 5 minutes only.</p>`,
       });
+
+      if (!emailResult?.accepted?.includes(normalizedEmail)) {
+        res.status(502);
+        throw new Error("Password reset OTP email could not be delivered. Please try again.");
+      }
+
+      await OtpModel.create({ email: normalizedEmail, hashedOTP });
+
       res.status(200).json({
         success: true,
         message: "OTP sent to your email for password reset",
@@ -457,10 +533,7 @@ const forget_pass = async(req, res,next) => {
     }
     catch (error) {
       console.error("Error in forget_pass:", error);
-      res.status(500).json({ // 500 means internal server error, which is appropriate for unexpected errors
-        success: false,
-        message: "Internal server error",
-      });
+      next(error);
     }
 }
 
