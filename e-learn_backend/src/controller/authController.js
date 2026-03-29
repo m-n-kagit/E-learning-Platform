@@ -9,8 +9,9 @@ import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/send_email.js";
 import pass_validator from "./pass_validator.js";
 import uploadCloudinary from "../utils/cloudinery.js";
+import BlockedToken from "../models/Blocked_tokens.models.js";
 
-const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 7 * 24 * 60 * 60 * 1000;
+const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 15 * 60 * 1000;
 const resetPasswordCookieMaxAge = 10 * 60 * 1000; // 10 minutes for password reset token
 const tokenSecret = process.env.ACCESS_TOKEN_SECRET;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -363,6 +364,13 @@ const verifyOTP = async (req, res, next) => {
 
 const logoutUser = async (req, res, next) => {
   try {
+    const {token} = req.cookies;
+    if (!token) {
+    res.respond(400);
+    }
+    //Storing the token in the database if its expiry is above the 
+    //logut time to prevent its reuse until it naturally expires.
+    await BlockedToken.create({token, expiresAt: new Date(Date.now() + cookieMaxAge)});
     res.clearCookie("token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

@@ -16,6 +16,19 @@ export default function Login() {
   const [passError, setPassError] = useState("");
   const [loginError, setLoginError] = useState("");
 
+  const getDashboardRoute = (role) => {
+    switch (role) {
+      case "user":
+        return "/student-dashboard";
+      case "course_admin":
+        return "/course-admin";
+      case "global_admin":
+        return "/global-admin";
+      default:
+        return "/";
+    }
+  };
+
   const handleLogin = async () => {
     try {
       setLoginError("");
@@ -44,7 +57,8 @@ export default function Login() {
 
       console.log(response.data);
       alert(response.data.message || "Logged in successfully.");
-      navigate("/");
+      const userRole = response.data?.data?.role;
+      navigate(getDashboardRoute(userRole));
     } catch (error) {
       console.error("Error fetching data:", error);
       setLoginError(
