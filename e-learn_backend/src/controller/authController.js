@@ -147,7 +147,11 @@ const registerTempUser = async (req, res, next) => { //for course admin
       if (!isClean) {
         res.status(400);
         throw new Error("The uploaded document is potentially harmful. Please upload a clean file.");
-      }
+      }}).catch((error) => {
+        console.error("Error during virus check:", error);
+        res.status(500);
+        throw new Error("An error occurred while checking the document for viruses. Please try again later.");
+      });
 
     const userExists = await User.findOne({ email: normalizedEmail });
     if (userExists) {
