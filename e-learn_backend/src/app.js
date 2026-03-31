@@ -7,6 +7,7 @@ import errorHandler from "./middlewares/errorMiddleware.js";
 import rateLimiter from "./utils/rate-limiter.js";
 
 dotenv.config();
+//the config file is loaded before the app is created so that the environment variables are available when the app is initialized. 
 
 const app = express();
 

@@ -6,8 +6,8 @@ import axios from "axios";
    MOCK DATA
 ───────────────────────────────────────────── */
 const STUDENT = {
-  name: "Arjun Sharma",
-  email: "arjun.sharma@email.com",
+  name: "Mohit Sharma",
+  email: "mohit.sharma@email.com",
   initials: "AS",
   joinDate: "January 2024",
   rank: 247,
@@ -210,7 +210,7 @@ function DashboardHome({ setView, go }) {
     <div className="sd-page">
       <div className="sd-page-head">
         <div>
-          <h1>Welcome back, <span className="acc">Arjun</span> </h1>
+          <h1>Welcome back, <span className="acc">Mohit</span> </h1>
           <p>Continue your learning journey. You're on a 7-day streak!</p>
         </div>
         <button className="sd-cta-btn" onClick={() => go("my-courses")}>Continue Learning →</button>

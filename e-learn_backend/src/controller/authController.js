@@ -10,6 +10,7 @@ import sendEmail from "../utils/send_email.js";
 import pass_validator from "./pass_validator.js";
 import uploadCloudinary from "../utils/cloudinery.js";
 import BlockedToken from "../models/Blocked_tokens.models.js";
+import virus_check from "../utils/virus_total.js";
 
 const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 15 * 60 * 1000;
 const resetPasswordCookieMaxAge = 10 * 60 * 1000; // 10 minutes for password reset token
@@ -131,6 +132,22 @@ const registerTempUser = async (req, res, next) => { //for course admin
         throw new Error("Please upload a PDF verification document for admin signup");
       }
     }
+
+    await virus_check.uploadFile(req.file.path).then((analysisId) => {
+      if (!analysisId) {
+        res.status(500);
+        throw new Error("Unable to scan the uploaded document for viruses. Please try again later.");
+      }}).catch((error) => {
+        console.error("Error during virus scan:", error);
+        res.status(500);
+        throw new Error("An error occurred while scanning the document for viruses. Please try again later.");
+      });
+    
+    await virus_check.virus_check(analysisId).then((isClean) => {
+      if (!isClean) {
+        res.status(400);
+        throw new Error("The uploaded document is potentially harmful. Please upload a clean file.");
+      }
 
     const userExists = await User.findOne({ email: normalizedEmail });
     if (userExists) {
@@ -340,7 +357,13 @@ const verifyOTP = async (req, res, next) => {
       adminDocumentUrl: tempUser.adminDocumentUrl,
       adminDocumentPublicId: tempUser.adminDocumentPublicId,
     });
-    user.$locals = { passwordAlreadyHashed: true };
+    user.$locals = { passwordAlreadyHashed: true };//here $locals is used 
+    // to pass the information that the password is already hashed and 
+    // it should not be hashed again in the pre save hook of the user model. 
+    // This is necessary because we are creating a new user from the temp 
+    // user which already has the password hashed and if we hash it again then 
+    // it will not match with the original password and the user will not be 
+    // able to login. By setting user.$locals.passwordAlreadyHashed to true, we can skip the hashing process in the pre save hook and save the user with the already hashed password.
     await user.save();
 
     await TempUser.deleteMany({ email });

@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "accepts": "^2.0.0",
+    "axios": "^1.14.0",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.2",
     "bson": "^7.2.0",
@@ -33,6 +34,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.1",
     "finalhandler": "^2.1.1",
+    "form-data": "^4.0.5",
     "forwarded": "^0.2.0",
     "fresh": "^2.0.0",
     "function-bind": "^1.1.2",
@@ -88,6 +90,7 @@
     "sparse-bitfield": "^3.0.3",
     "statuses": "^2.0.2",
     "toidentifier": "^1.0.1",
+    "totalvirus-api": "^1.0.0",
     "tr46": "^5.1.1",
     "type-is": "^2.0.1",
     "unpipe": "^1.0.0",

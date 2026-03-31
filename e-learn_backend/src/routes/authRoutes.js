@@ -9,6 +9,7 @@ import { upload } from "../middlewares/multer.js";
 // Public routes
 // router.post("/register", authcontroller.registerUser);
 router.post("/register-temp", upload.single("verificationDocument"), authcontroller.registerTempUser);
+//single function is used to upload a single file and the name of the file field in the form data is "verificationDocument" and the uploaded file will be available in req.file in the controller function
 router.post("/send-otp", authcontroller.sendOTP);
 router.post("/verify-otp",rateLimiter.login_limiter, authcontroller.verifyOTP);
 router.post("/login",rateLimiter.login_limiter, authcontroller.loginUser); // sending file in json format so that 
@@ -20,9 +21,6 @@ router.post("/forget-password", authcontroller.forget_pass);
 router.post("/verify-otp-forget-password",rateLimiter.login_limiter, authcontroller.verifyOTP_forget_password);
 router.post("/enter-new-password", authcontroller.Enter_new_password);
 
-router.get("/test", (req, res) => {
-  res.send("Test route is working");
-});
 
 // Protected route — requires valid JWT
 router.get("/me", protect.protect, authcontroller.getMe);

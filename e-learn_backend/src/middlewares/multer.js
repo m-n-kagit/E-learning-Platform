@@ -3,6 +3,10 @@ import path from "path";
 import multer from "multer";
 
 const tempDir = path.resolve(process.cwd(), "public", "temp");
+//process.cwd() returns the current working directory of the Node.js process, which is typically the root directory of the project.
+
+//tempdir is the directory where multer will temporarily
+// store uploaded files before they are processed and uploaded to Cloudinary.
 fs.mkdirSync(tempDir, { recursive: true });
 //mkdir Sync is used to create the temporary directory 
 // if it doesn't already exist. 
@@ -19,7 +23,13 @@ const storage = multer.diskStorage({
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
   },
-});
+});// here cb means callback function which is used to
+//  specify the destination and filename for the uploaded file.
+// The destination function specifies the directory where the 
+// uploaded file will be stored temporarily, which is the tempDir 
+// we defined earlier.
+// The filename function generates a unique filename for the uploaded 
+// file by combining the original field name, a unique suffix (based on the current timestamp and a random number), and the original file extension. This helps prevent filename collisions when multiple files are uploaded.  
 
 const fileFilter = (req, file, cb) => {
   const isPdf =
