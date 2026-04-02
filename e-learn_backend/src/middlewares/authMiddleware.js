@@ -10,6 +10,7 @@ const tokenSecret =  process.env.ACCESS_TOKEN_SECRET;
 // If valid -> attaches the decoded user to req.user and calls next().
 // If invalid/missing -> throws 401.
 const protect = async (req, res, next) => { //next is used to pass the control to the next middleware in the stack.
+ 
   try {
     let token = req.cookies?.token;
 
@@ -73,7 +74,8 @@ const protect = async (req, res, next) => { //next is used to pass the control t
 const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
-      res.status(403);
+      res.status(403);//403 Forbidden is more appropriate 
+      // for authorization failures
       return next(
         new Error("You do not have permission to perform this action")
       );

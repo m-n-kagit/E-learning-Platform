@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import dns from "dns/promises";
+import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import TempUser from "../models/Temp_user.js";
 import OtpModel from "../models/Otp.js";
@@ -16,6 +17,7 @@ const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 15 * 
 const resetPasswordCookieMaxAge = 10 * 60 * 1000; // 10 minutes for password reset token
 const tokenSecret = process.env.ACCESS_TOKEN_SECRET;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const shouldRequireVirusScan = process.env.NODE_ENV === "production";
 
 const validateDeliverableEmail = async (email) => {
   const normalizedEmail = String(email || "").trim().toLowerCase();
@@ -107,6 +109,7 @@ const registerTempUser = async (req, res, next) => { //for course admin
   try {
     const { name, email, password, role, adminPhoneNumber } = req.body;
     const normalizedRole = role === "course_admin" ? "course_admin" : "student";
+    const uploadedFilePath = req.file?.path;
 
     if (!name || !email || !password) {
       res.status(400);
@@ -133,42 +136,58 @@ const registerTempUser = async (req, res, next) => { //for course admin
       }
     }
 
-    await virus_check.uploadFile(req.file.path).then((analysisId) => {
-      if (!analysisId) {
-        res.status(500);
-        throw new Error("Unable to scan the uploaded document for viruses. Please try again later.");
-      }}).catch((error) => {
-        console.error("Error during virus scan:", error);
-        res.status(500);
-        throw new Error("An error occurred while scanning the document for viruses. Please try again later.");
-      });
-    
-    await virus_check.virus_check(analysisId).then((isClean) => {
-      if (!isClean) {
-        res.status(400);
-        throw new Error("The uploaded document is potentially harmful. Please upload a clean file.");
-      }}).catch((error) => {
-        console.error("Error during virus check:", error);
-        res.status(500);
-        throw new Error("An error occurred while checking the document for viruses. Please try again later.");
-      });
-
-    const userExists = await User.findOne({ email: normalizedEmail });
-    if (userExists) {
-      res.status(409);
-      throw new Error("An account with this email already exists");
+      const userExists = await User.findOne({ email: normalizedEmail , adminPhoneNumber: adminPhoneNumber });
+      if (userExists) {
+        res.status(409);
+      throw new Error("An account with this email or admin phone number already exists");
     }
 
     await TempUser.deleteMany({ email: normalizedEmail });
-    await OtpModel.deleteMany({ email: normalizedEmail });
+      await OtpModel.deleteMany({ email: normalizedEmail });
+  
+      let adminDocument = null;
+  
+      if (normalizedRole === "course_admin" && uploadedFilePath) {
+        let analysisId;
+        try {
+          analysisId = await virus_check.uploadFile(uploadedFilePath);
+        } catch (error) {
+          console.error("Error during virus scan upload:", error);
+          if (shouldRequireVirusScan) {
+            res.status(500);
+            throw new Error("An error occurred while scanning the document for viruses. Please try again later.");
+          }
+        }
 
-    let adminDocument = null;
+        if (!analysisId && shouldRequireVirusScan) {
+          res.status(500);
+          throw new Error("Unable to scan the uploaded document for viruses. Please try again later.");
+        }
 
-    if (normalizedRole === "course_admin" && req.file?.path) {
-      adminDocument = await uploadCloudinary(req.file.path);
+        if (analysisId) {
+          let isClean;
+          try {
+            isClean = await virus_check.virus_check(analysisId);
+          } catch (error) {
+            console.error("Error during virus report check:", error);
+            if (shouldRequireVirusScan) {
+              res.status(500);
+              throw new Error("An error occurred while checking the document for viruses. Please try again later.");
+            }
+          }
 
-      if (!adminDocument?.secure_url) {
-        res.status(500);
+          if (isClean === false) {
+            res.status(400);
+            throw new Error("The uploaded document is potentially harmful. Please upload a clean file.");
+          }
+        }
+
+        adminDocument = await uploadCloudinary(uploadedFilePath);
+  
+        if (!adminDocument?.secure_url) {//secure_url is the url of 
+        // the uploaded file in cloudinary and 
+        // if it is not present then it means that the upload failed
+          res.status(500);
         throw new Error("Unable to upload admin verification document right now");
       }
     }
@@ -195,11 +214,17 @@ const registerTempUser = async (req, res, next) => { //for course admin
         adminDocumentUrl: tempUser.adminDocumentUrl,
         expiresAt: tempUser.expiresAt
       },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      });
+    } catch (error) {
+      next(error);
+    } finally {
+      if (uploadedFilePath) {
+        await fs.unlink(uploadedFilePath).catch((unlinkError) => {
+          console.error("Failed to delete temporary upload:", unlinkError);
+        });
+      }
+    }
+  };
 
 const loginUser = async (req, res, next) => {
   try {

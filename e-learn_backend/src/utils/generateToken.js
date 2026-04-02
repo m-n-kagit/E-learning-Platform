@@ -9,7 +9,7 @@ const tokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || "7d";
  * Signed with: JWT_SECRET from environment
  * Expires in: 7 days (configurable)
  */
-const generateToken = (userId, options = {}) => {
+const generateAccessToken = (userId, options = {}) => {
   if (!tokenSecret) {
     throw new Error("JWT secret is missing from environment variables");
   }
@@ -25,4 +25,6 @@ const generateToken = (userId, options = {}) => {
   });
 };
 
-export default generateToken;
+// const generateRefressToken = (userId,op)
+
+export default generateAccessToken;
