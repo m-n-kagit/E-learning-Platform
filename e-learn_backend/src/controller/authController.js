@@ -14,8 +14,10 @@ import BlockedToken from "../models/Blocked_tokens.models.js";
 import virus_check from "../utils/virus_total.js";
 
 const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 15 * 60 * 1000;
+const refreshTokenMaxAge = Number(process.env.REFRESH_TOKEN_COOKIE_MAX_AGE_MS) || 7 * 24 * 60 * 60 * 1000; // set to 7 days by default
 const resetPasswordCookieMaxAge = 10 * 60 * 1000; // 10 minutes for password reset token
 const tokenSecret = process.env.ACCESS_TOKEN_SECRET;
+const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET || process.env.ACCESS_TOKEN_SECRET;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const shouldRequireVirusScan = process.env.NODE_ENV === "production";
 
@@ -72,6 +74,18 @@ const setTokenCookie = (res, userId, maxAge = cookieMaxAge, options = {}) => {
   res.cookie("token", generateToken(userId, options), getCookieOptions(maxAge));
 };
 
+const setRefreshTokenCookie = (res, refreshToken, maxAge = refreshTokenMaxAge) => {
+  res.cookie("refreshToken", refreshToken, getCookieOptions(maxAge));
+};
+
+const issueAndPersistRefreshToken = async (res, userId, maxAge = refreshTokenMaxAge) => {
+  const refreshToken = generateToken(userId, { purpose: "refresh" });
+  setRefreshTokenCookie(res, refreshToken, maxAge);
+  await User.updateOne({ _id: userId }, { refreshToken });
+  return refreshToken;
+};
+
+
 const registerUser = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -89,6 +103,7 @@ const registerUser = async (req, res, next) => {
 
     const user = await User.create({ name, email, password });
     setTokenCookie(res, user._id);
+    await issueAndPersistRefreshToken(res, user._id);
 
     res.status(201).json({
       success: true,
@@ -236,12 +251,13 @@ const loginUser = async (req, res, next) => {
     }
 
     const user = await User.findOne({ email }).select("+password");
-
+    
     if (!user || !(await user.matchPassword(password))) {
       res.status(401);
       throw new Error("Invalid email or password");
     }
     setTokenCookie(res, user._id);
+    await issueAndPersistRefreshToken(res, user._id);
 
     res.status(200).json({
       success: true,
@@ -417,13 +433,38 @@ const verifyOTP = async (req, res, next) => {
 const logoutUser = async (req, res, next) => {
   try {
     const {token} = req.cookies;
-    if (!token) {
-    res.respond(400);
+    const { refreshToken } = req.cookies;
+    if (!token && !refreshToken) {
+      res.status(400);
+      throw new Error("No active session found");
     }
     //Storing the token in the database if its expiry is above the 
     //logut time to prevent its reuse until it naturally expires.
-    await BlockedToken.create({token, expiresAt: new Date(Date.now() + cookieMaxAge)});
+    if (token) {
+      await BlockedToken.create({token, expiresAt: new Date(Date.now() + cookieMaxAge)});
+    }
+
+    if (refreshToken) {
+      try {
+        if (!refreshTokenSecret) {
+          throw new Error("Refresh token secret is missing from environment variables");
+        }
+
+        const decodedRefresh = jwt.verify(refreshToken, refreshTokenSecret);
+        if (decodedRefresh?.id) {
+          await User.updateOne({ _id: decodedRefresh.id }, { $unset: { refreshToken: 1 } });
+        }
+      } catch (refreshError) {
+        // Ignore refresh token verify failures during logout and still clear cookies.
+      }
+    }
+
     res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+    res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -434,6 +475,55 @@ const logoutUser = async (req, res, next) => {
       message: "Logged out successfully",
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+const refreshAccessToken = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      res.status(401);
+      throw new Error("Refresh token is missing");
+    }
+
+    if (!refreshTokenSecret) {
+      throw new Error("Refresh token secret is missing from environment variables");
+    }
+
+    const decoded = jwt.verify(refreshToken, refreshTokenSecret);
+
+    if (decoded.purpose !== "refresh") {
+      res.status(401);
+      throw new Error("This token cannot be used for refresh");
+    }
+
+    const user = await User.findById(decoded.id).select("+refreshToken");
+    if (!user) {
+      res.status(401);
+      throw new Error("User not found");
+    }
+
+    if (!user.refreshToken || user.refreshToken !== refreshToken) {
+      res.status(401);
+      throw new Error("Refresh token is invalid or already rotated");
+    }
+
+    // Issue fresh short-lived access token and rotate refresh token.
+    setTokenCookie(res, user._id);
+    await issueAndPersistRefreshToken(res, user._id);
+
+    res.status(200).json({
+      success: true,
+      message: "Access token refreshed successfully",
+    });
+  } catch (error) {
+    if (error.name === "TokenExpiredError" || error.name === "JsonWebTokenError") {
+      res.clearCookie("refreshToken", getCookieOptions(0));
+      res.status(401);
+      return next(new Error("Refresh token expired or invalid. Please log in again."));
+    }
     next(error);
   }
 };
@@ -602,6 +692,7 @@ export default {
   registerUser,
   registerTempUser,
   loginUser,
+  refreshAccessToken,
   getMe,
   sendOTP,
   verifyOTP,

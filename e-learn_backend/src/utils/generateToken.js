@@ -1,7 +1,9 @@
 import jwt from "jsonwebtoken";
 
-const tokenSecret =  process.env.ACCESS_TOKEN_SECRET;
-const tokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || "7d";
+const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
+const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET || process.env.ACCESS_TOKEN_SECRET;
+const accessTokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || "15m";
+const refreshTokenExpiry = process.env.REFRESH_TOKEN_EXPIRY || "7d";
 
 /**
  * Generates a signed JWT token.
@@ -9,17 +11,18 @@ const tokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || "7d";
  * Signed with: JWT_SECRET from environment
  * Expires in: 7 days (configurable)
  */
-const generateAccessToken = (userId, options = {}) => {
-  if (!tokenSecret) {
+const generateToken = (userId, options = {}) => {
+  const {
+    purpose = "auth",
+    secret = purpose === "refresh" ? refreshTokenSecret : accessTokenSecret,
+    expiresIn = purpose === "refresh" ? refreshTokenExpiry : accessTokenExpiry,
+  } = options;
+
+  if (!secret) {
     throw new Error("JWT secret is missing from environment variables");
   }
 
-  const {
-    purpose = "auth",
-    expiresIn = tokenExpiry,
-  } = options;
-
-  return jwt.sign({ id: userId, purpose }, tokenSecret, { //signing the token with the user id and 
+  return jwt.sign({ id: userId, purpose }, secret, { //signing the token with the user id and 
   // purpose of the token which is auth in this case
     expiresIn,
   });
@@ -27,4 +30,4 @@ const generateAccessToken = (userId, options = {}) => {
 
 // const generateRefressToken = (userId,op)
 
-export default generateAccessToken;
+export default generateToken;

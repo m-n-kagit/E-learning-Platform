@@ -15,6 +15,7 @@ router.post("/verify-otp",rateLimiter.login_limiter, authcontroller.verifyOTP);
 router.post("/login",rateLimiter.login_limiter, authcontroller.loginUser); // sending file in json format so that 
 // we can easily access it in frontend and also for security 
 // purpose we are not sending the password in response
+router.post("/refresh-token", authcontroller.refreshAccessToken);
 
 router.post("/logout", authcontroller.logoutUser);
 router.post("/forget-password", authcontroller.forget_pass);
