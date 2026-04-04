@@ -2,9 +2,9 @@ import { useState } from "react";
 import Footer from "../components/Footer";
 
 const contactItems = [
-  { i: "📧", l: "Email",  v: "hello@learnsphere.io"   },
-  { i: "📞", l: "Phone",  v: "+1 (800) 555-LEARN"     },
-  { i: "📍", l: "Office", v: "San Francisco, CA 94105" },
+  { i: "📧", l: "Email",  v: "mohithyper007@gmail.com"   },
+  { i: "📞", l: "Phone",  v: "+91  8440094408"     },
+  { i: "📍", l: "Office", v: "BanderSindri, Kishangarhv, Ajmer" },
   { i: "🕒", l: "Hours",  v: "Mon–Fri, 9am–6pm PST"   },
 ];
 

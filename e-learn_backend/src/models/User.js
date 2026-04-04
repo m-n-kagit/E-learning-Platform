@@ -40,10 +40,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    refreshToken: {
-      type: String,
-      select: false, // Don't return refresh token in queries
-    }
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    
   },
   { timestamps: true } // Adds createdAt and updatedAt automatically
 );

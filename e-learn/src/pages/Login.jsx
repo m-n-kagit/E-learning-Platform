@@ -29,6 +29,8 @@ export default function Login() {
     }
   };
 
+
+
   const handleLogin = async () => {
     try {
       setLoginError("");
@@ -54,7 +56,7 @@ export default function Login() {
         // credentials such as cookies, authorization headers,
         // or TLS client certificates.
       });
-
+      localStorage.setItem("hasSession", "true");
       console.log(response.data);
       alert(response.data.message || "Logged in successfully.");
       const userRole = response.data?.data?.role;
