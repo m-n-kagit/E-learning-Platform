@@ -422,3 +422,22 @@ button { font-family: 'Inter', sans-serif; cursor: pointer; }
 
 /* ── SELECTION ── */
 ::selection { background: rgba(31,92,16,0.2); color: var(--text-primary); }
+
+/* Courses Available style reused in Home + Explore + Dashboard */
+.sd-avail-search-wrap { max-width:760px; margin:0 auto 18px; display:flex; align-items:center; gap:10px; }
+.sd-avail-input { flex:1; min-width:160px; background:var(--card); border:1px solid var(--border-med); color:var(--text-primary); font-family:inherit; font-size:13.5px; padding:10px 14px; border-radius:10px; outline:none; }
+.sd-avail-input::placeholder { color:var(--text-secondary); }
+.sd-avail-input:focus { border-color:var(--header); box-shadow:0 0 0 2px rgba(126,181,107,0.22); }
+.sd-avail-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:20px; }
+.sd-avail-card { background:var(--card); border:1px solid var(--border-med); border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.08); transition:transform .2s, background-color .2s, border-color .2s; }
+.sd-avail-card:hover { transform:translateY(-3px); background:var(--card-hover); border-color:rgba(0,0,0,0.18); }
+.sd-avail-top { position:relative; height:155px; }
+.sd-avail-image { width:100%; height:100%; object-fit:cover; display:block; }
+.sd-avail-level { position:absolute; right:10px; top:10px; font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px; color:#fff; background:#00000088; }
+.sd-avail-cat { margin:14px 16px 8px; color:var(--accent); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.sd-avail-name { margin:0 16px; font-size:15px; font-weight:700; color:var(--text-primary); line-height:1.4; }
+.sd-avail-desc { margin:10px 16px 12px; font-size:12.5px; color:var(--text-secondary); line-height:1.5; min-height:56px; }
+.sd-avail-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 16px 16px; }
+.sd-avail-stu { font-size:12px; color:var(--text-secondary); }
+.sd-avail-enroll { font-size:12px; font-family:inherit; background:transparent; border:1px solid rgba(31,92,16,0.35); color:var(--accent); padding:6px 14px; border-radius:8px; cursor:pointer; transition:all .2s; }
+.sd-avail-enroll:hover { background:var(--accent-glow); }

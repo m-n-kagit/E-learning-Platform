@@ -7,7 +7,7 @@ import OtpModel from "../models/Otp.js";
 import User from "../models/User.js";
 import generateOTP from "../utils/generateOtp.js";
 import generateToken from "../utils/generateToken.js";
-import sendEmail from "../utils/send_email.js";
+import Email from "../utils/send_email.js";
 import pass_validator from "./pass_validator.js";
 import uploadCloudinary from "../utils/cloudinery.js";
 import BlockedToken from "../models/Blocked_tokens.models.js";
@@ -308,7 +308,7 @@ const sendOTP = async (req, res, next) => {
     }
 
     const { otp, hashedOTP } = await generateOTP();
-    const emailResult = await sendEmail({
+    const emailResult = await Email.sendEmail({
       to: normalizedEmail,
       subject: "Your OTP Code",
       html: `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 5 minutes only.</p>`,

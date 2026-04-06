@@ -27,7 +27,6 @@ function ProtectedRoute({ allowedRoles }) {
   // successfully
   const [isChecking, setIsChecking] = useState(true);
   const [user, setUser] = useState(null);
-  const [isOnboarded, setIsOnboarded] = useState(false);
 
   useEffect(() => {
     let isActive = true;

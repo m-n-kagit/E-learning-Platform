@@ -3,7 +3,7 @@ import FormData  from 'form-data';
 import axios  from "axios"
 
 const API_KEY = process.env.VIRUS_TOTAL_API_KEY?.trim();
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 3000; // 3sec between each poll
 const MAX_POLL_ATTEMPTS = 10;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,27 +68,33 @@ async function getReport(analysisId) {
 }
 
 async function virus_check(analysisId){
+    if (!analysisId) {
+        const error = new Error("Analysis ID is required to check VirusTotal report.");
+        error.code = "VT_ANALYSIS_ID_MISSING";
+        throw error;
+    }
+
+    let lastStatus = "unknown";
+
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
         const report = await getReport(analysisId);
         const status = report.attributes?.status;
+        lastStatus = status ?? "unknown";
+        const stats = report.attributes?.stats ?? {};
+        const maliciousCount = stats.malicious ?? 0;
+        const suspiciousCount = stats.suspicious ?? 0;
 
-        if (status === "completed") {
-            const stats = report.attributes?.stats ?? {};
-            const maliciousCount = stats.malicious ?? 0;
-            const suspiciousCount = stats.suspicious ?? 0;
-            const harmlessCount = stats.harmless ?? 0;
-
-            if (maliciousCount > 0 || suspiciousCount > 0 || harmlessCount === 0) {
-                return false; // File is potentially harmful
-            }
-            return true; // File is clean
+        if (maliciousCount > 0 || suspiciousCount > 0) {
             console.log("Scan completed. Stats:", stats);
+            return false;
         }
 
-        await delay(POLL_INTERVAL_MS);
-    }
-
-    throw new Error("VirusTotal analysis did not complete in time.");
+        if (attempt < MAX_POLL_ATTEMPTS - 1) {
+            await delay(POLL_INTERVAL_MS);
+        }
+    } 
+    console.log(`Scan completed after ${MAX_POLL_ATTEMPTS} checks. Last status: ${lastStatus}`);
+    return true;
 }
 
 
@@ -96,7 +102,5 @@ export default { uploadFile , virus_check}
 
 
  
-
-
 
 

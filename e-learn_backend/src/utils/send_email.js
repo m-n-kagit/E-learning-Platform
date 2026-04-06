@@ -14,13 +14,22 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendEmail = async ({ to, subject, html }) => {
+const sendEmail = ( to, subject, html ) => {
   return transporter.sendMail({
     from: process.env.SMTP_USER,
     to,
     subject,
     html
   });
-};
+}
 
-export default sendEmail;
+const receiveEmail = (to, from , html)=>{
+  return transporter.sendMail({
+    from,
+    to:process.env.SMTP_USER,
+    subject:"Contact Form Submission",
+    html
+  })
+}
+
+export default {sendEmail, receiveEmail};

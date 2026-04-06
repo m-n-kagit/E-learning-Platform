@@ -96,21 +96,21 @@ export default function Home() {
           Hand-picked by our experts to boost your skills in the most in-demand fields.
         </p>
 
-        <div className="courses-grid">
+        <div className="sd-avail-grid">
           {courses.map((c, i) => (
-            <div className="course-card" key={i}>
-              <div className="cc-top">
-                <img src={c.icon} alt={c.cat} className="cc-images" />
-                <div className="cc-level">{c.lvl}</div>
+            <div className="sd-avail-card" key={i}>
+              <div className="sd-avail-top">
+                <img src={c.icon} alt={c.cat} className="sd-avail-image" />
+                <div className="sd-avail-level">{c.lvl}</div>
               </div>
 
-              <div className="cc-cat">{c.cat}</div>
-              <div className="cc-name">{c.name}</div>
-              <p className="cc-desc">{c.desc}</p>
+              <div className="sd-avail-cat">{c.cat}</div>
+              <div className="sd-avail-name">{c.name}</div>
+              <p className="sd-avail-desc">{c.desc}</p>
 
-              <div className="cc-footer">
-                <span className="cc-stu">{c.stu} students</span>
-                <button className="cc-btn" onClick={() => navigate("/explore")}>
+              <div className="sd-avail-foot">
+                <span className="sd-avail-stu">{c.stu} students</span>
+                <button className="sd-avail-enroll" onClick={() => navigate("/explore")}>
                   Enroll
                 </button>
               </div>

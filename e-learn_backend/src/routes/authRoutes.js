@@ -5,7 +5,7 @@ import authcontroller from "../controller/authController.js"
 import protect from "../middlewares/authMiddleware.js";
 import rateLimiter from "../utils/rate-limiter.js";
 import { upload } from "../middlewares/multer.js";
-
+import { updateDetails } from "../controller/profileController.js";
 // Public routes
 // router.post("/register", authcontroller.registerUser);
 router.post("/register-temp", upload.single("verificationDocument"), authcontroller.registerTempUser);
@@ -24,6 +24,7 @@ router.post("/enter-new-password", authcontroller.Enter_new_password);
 
 // Protected route — requires valid JWT
 router.get("/me", protect.protect, protect.restrictTo("user", "course_admin", "admin"), authcontroller.getMe);
+router.patch("/update-profile", protect.protect, updateDetails);
 //this route is used to get the details of the logged in user and it is protected by the protect middleware which checks for the valid JWT token in the request header and if the token is valid then it allows the user to access the route otherwise it returns an error response
 
 export default router;

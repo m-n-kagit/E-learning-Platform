@@ -9,6 +9,7 @@ export default function Signup() {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
     role: "student",
     adminPhoneNumber: "",
     verificationDocument: null,
@@ -16,16 +17,45 @@ export default function Signup() {
   const [signupError, setSignupError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passError, setPassError] = useState("");
+  const [confirmPassError, setConfirmPassError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
- 
+
+  const stripSqlKeywords = (value) =>
+    value.replace(
+      /\b(select|insert|update|delete|drop|alter|truncate|modify|create|replace|where|union|join|exec|execute)\b/gi,
+      ""
+    );
+
+  const sanitizeName = (value) =>
+    stripSqlKeywords(value)
+      .replace(/[^a-zA-Z\s'-]/g, "")
+      .replace(/\s{2,}/g, " ")
+      .replace(/^\s+/, "");
+
+  const sanitizePhone = (value) =>
+    stripSqlKeywords(value)
+      .replace(/[^\d+]/g, "")
+      .replace(/(?!^)\+/g, "")
+      .slice(0, 15);
+
   const handleSignup = async () => {
     try {
       setSignupError("");
       setEmailError("");
       setPassError("");
+      setConfirmPassError("");
 
-      if (!form.name || !form.email || !form.password) {
+      const cleanedName = sanitizeName(form.name).trim();
+      const cleanedAdminPhoneNumber = sanitizePhone(form.adminPhoneNumber);
+
+      if (!cleanedName || !form.email || !form.password || !form.confirmPassword) {
         setSignupError("Please fill in all fields.");
+        return;
+      }
+
+      if (form.password !== form.confirmPassword) {
+        setConfirmPassError("Passwords do not match.");
+        setSignupError("Please make sure both passwords match.");
         return;
       }
 
@@ -44,7 +74,7 @@ export default function Signup() {
       }
 
       if (form.role === "course_admin") {
-        if (!form.adminPhoneNumber) {
+        if (!cleanedAdminPhoneNumber) {
           setSignupError("Please provide an admin contact number.");
           return;
         }
@@ -67,13 +97,13 @@ export default function Signup() {
       setIsSubmitting(true);
 
       const signupFormData = new FormData();
-      signupFormData.append("name", form.name);
+      signupFormData.append("name", cleanedName);
       signupFormData.append("email", form.email);
       signupFormData.append("password", form.password);
       signupFormData.append("role", form.role); 
 
       if (form.role === "course_admin") {
-        signupFormData.append("adminPhoneNumber", form.adminPhoneNumber);
+        signupFormData.append("adminPhoneNumber", cleanedAdminPhoneNumber);
         signupFormData.append("verificationDocument", form.verificationDocument);
       }
 
@@ -146,6 +176,23 @@ export default function Signup() {
   
     }, [form.password]);
 
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        if (!form.confirmPassword) {
+          setConfirmPassError("");
+          return;
+        }
+
+        if (form.confirmPassword !== form.password) {
+          setConfirmPassError("Passwords do not match.");
+        } else {
+          setConfirmPassError("");
+        }
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }, [form.password, form.confirmPassword]);
+
   
   return (
     <div className="auth-page">
@@ -162,7 +209,7 @@ export default function Signup() {
           <input
             className="form-input"
             value={form.name} placeholder="Mohit Sharma"
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={(e) => setForm({ ...form, name: sanitizeName(e.target.value) })}
           />
         </div>
         <div className="form-group">
@@ -188,6 +235,22 @@ export default function Signup() {
           {passError && (
             <p style={{ color: "red", fontSize: "14px" }}>
               {passError}
+            </p>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Confirm Password</label>
+          <input
+            className="form-input"
+            type="password"
+            value={form.confirmPassword}
+            placeholder="Re-enter password"
+            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+          />
+          {confirmPassError && (
+            <p style={{ color: "red", fontSize: "14px" }}>
+              {confirmPassError}
             </p>
           )}
         </div>
@@ -221,7 +284,7 @@ export default function Signup() {
                 value={form.adminPhoneNumber}
                 placeholder="Enter your contact number"
                 onChange={(e) =>
-                  setForm({ ...form, adminPhoneNumber: e.target.value })
+                  setForm({ ...form, adminPhoneNumber: sanitizePhone(e.target.value) })
                 }
               />
             </div>

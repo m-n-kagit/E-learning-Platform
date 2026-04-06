@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import Footer from "../components/Footer";
 
 const contactItems = [
@@ -11,10 +12,74 @@ const contactItems = [
 export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
   const [done, setDone] = useState(false);
+  const sendEmail = async () => {
+    try {
+      await axios.post("/api/emails/contact", {
+        to: "mohithyper007@gmail.com",
+        from: form.email,
+        subject: form.subject,
+        message: form.message
+      });
+      setDone(true);
+    } catch (error) {
+      console.error("Error sending email:", error);
+    }
+  };
 
-  const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const stripSqlKeywords = (value) =>
+    value.replace(
+      /\b(select|insert|update|delete|drop|alter|truncate|modify|create|replace|where|union|join|exec|execute)\b/gi,
+      ""
+    );
+
+  const sanitizeName = (value) =>
+    stripSqlKeywords(value)
+      .replace(/[^a-zA-Z\s'-]/g, "") //not a chacter, space, apostrophe, or hyphen
+      .replace(/\s{2,}/g, " ")
+      .replace(/^\s+/, "");
+
+  const sanitizeEmail = (value) =>
+    stripSqlKeywords(value)
+      .trim()
+      .toLowerCase()
+      .replace(/\s/g, "");
+
+  const sanitizeSingleLine = (value) =>
+    stripSqlKeywords(value)
+      .replace(/[<>]/g, "")
+      .replace(/\s{2,}/g, " ")
+      .replace(/^\s+/, "");
+
+  const sanitizeMessage = (value) =>
+    stripSqlKeywords(value)
+      .replace(/[<>]/g, "")
+      .replace(/\r/g, "")
+      .replace(/\n{3,}/g, "\n\n");
+
+  const handle = (e) => {
+    const { name, value } = e.target;
+    let sanitizedValue = value;
+
+    if (name === "name") sanitizedValue = sanitizeName(value);
+    if (name === "email") sanitizedValue = sanitizeEmail(value);
+    if (name === "subject") sanitizedValue = sanitizeSingleLine(value);
+    if (name === "message") sanitizedValue = sanitizeMessage(value);
+
+    setForm({ ...form, [name]: sanitizedValue });
+  };
+
   const submit = () => {
-    if (form.name && form.email && form.message) setDone(true);
+    const cleanedForm = {
+      name: sanitizeName(form.name).trim(),
+      email: sanitizeEmail(form.email),
+      subject: sanitizeSingleLine(form.subject).trim(),
+      message: sanitizeMessage(form.message).trim(),
+    };
+
+    setForm(cleanedForm);
+    if (cleanedForm.name && cleanedForm.email && cleanedForm.message) {
+      sendEmail();
+    }
   };
 
   return (

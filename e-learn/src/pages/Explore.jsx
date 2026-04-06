@@ -1,25 +1,68 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
 import aiImage from "../images/Ai_image.jpg";
 import uiImage from "../images/UI_image.jpg";
 import cyberImage from "../images/Cyber_image.jpg";
+import devImage from "../images/1687.jpg";
+import dataAnalyticsImage from "../images/DA_image.jfif";
 
-const categories = [
-  { image: cyberImage, n: "Web Development", c: "180+ courses" },
-  { image: aiImage, n: "AI & Machine Learning", c: "95+ courses" },
-  { image: uiImage, n: "UI/UX Design", c: "120+ courses" },
-  { image: cyberImage, n: "Data Science", c: "110+ courses" },
-  { image: aiImage, n: "Cloud & DevOps", c: "75+ courses" },
-  { image: cyberImage, n: "Cybersecurity", c: "60+ courses" },
-  { image: uiImage, n: "Mobile Development", c: "88+ courses" },
-  { image: aiImage, n: "Business & Finance", c: "140+ courses" },
-  { image: uiImage, n: "Video & Photography", c: "55+ courses" },
+const courses = [
+  {
+    icon: devImage,
+    cat: "Development",
+    lvl: "Beginner",
+    name: "Full-Stack Web Dev Bootcamp",
+    desc: "Build real-world apps from HTML to deployment with React & Node.js.",
+    stu: "12,400",
+  },
+  {
+    icon: aiImage,
+    cat: "AI & ML",
+    lvl: "Intermediate",
+    name: "Machine Learning Fundamentals",
+    desc: "Understand algorithms, neural networks, and build intelligent models.",
+    stu: "8,900",
+  },
+  {
+    icon: uiImage,
+    cat: "Design",
+    lvl: "All Levels",
+    name: "UI/UX Design Mastery",
+    desc: "Learn to craft beautiful, user-centered digital products from scratch.",
+    stu: "6,200",
+  },
+  {
+    icon: cyberImage,
+    cat: "Data Science",
+    lvl: "Intermediate",
+    name: "Data Analytics with Python",
+    desc: "Analyze, visualize, and derive insights from complex datasets.",
+    stu: "9,700",
+  },
+  {
+    icon: dataAnalyticsImage,
+    cat: "Cloud",
+    lvl: "Advanced",
+    name: "AWS Cloud Architecture",
+    desc: "Design scalable, secure cloud infrastructure on Amazon Web Services.",
+    stu: "4,500",
+  },
+  {
+    icon: cyberImage,
+    cat: "Security",
+    lvl: "Intermediate",
+    name: "Ethical Hacking & Cybersecurity",
+    desc: "Protect systems and networks with ethical hacking techniques.",
+    stu: "7,800",
+  },
 ];
 
 export default function Explore() {
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
-  const filtered = categories.filter((c) =>
-    c.n.toLowerCase().includes(q.toLowerCase())
+  const filtered = courses.filter((c) =>
+    `${c.name} ${c.cat} ${c.desc}`.toLowerCase().includes(q.toLowerCase())
   );
 
   return (
@@ -35,19 +78,33 @@ export default function Explore() {
       </div>
 
       <div className="explore-body">
-        <input
-          className="search-input"
-          placeholder="Search categories..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        <div className="sd-avail-search-wrap" style={{ marginBottom: "2rem" }}>
+          <input
+            className="sd-avail-input"
+            placeholder="Search courses..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
 
-        <div className="cat-grid">
+        <div className="sd-avail-grid">
           {filtered.map((c, i) => (
-            <div className="cat-card" key={i}>
-              <img src={c.image} alt={c.n} className="cat-image" />
-              <div className="cat-name">{c.n}</div>
-              <div className="cat-count">{c.c}</div>
+            <div className="sd-avail-card" key={i}>
+              <div className="sd-avail-top">
+                <img src={c.icon} alt={c.cat} className="sd-avail-image" />
+                <div className="sd-avail-level">{c.lvl}</div>
+              </div>
+
+              <div className="sd-avail-cat">{c.cat}</div>
+              <div className="sd-avail-name">{c.name}</div>
+              <p className="sd-avail-desc">{c.desc}</p>
+
+              <div className="sd-avail-foot">
+                <span className="sd-avail-stu">{c.stu} students</span>
+                <button className="sd-avail-enroll" onClick={() => navigate("/signup")}>
+                  Enroll
+                </button>
+              </div>
             </div>
           ))}
 
@@ -61,7 +118,7 @@ export default function Explore() {
                 fontSize: "0.88rem",
               }}
             >
-              No categories found.
+              No courses found.
             </div>
           )}
         </div>

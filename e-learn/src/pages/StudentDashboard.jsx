@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import  CourseCard from "../components/CourseCard"; 
+import  Certificates  from "../components/Certificates";
+import  MyCourses  from "../components/MyCourses";
+import CoursesAvailable from "../components/CoursesAvailable";
 import axios from "axios";
-
+import { useDispatch,useSelector } from "react-redux";
+import { setStudent, updateStudent } from "../features/student_detailsSlice";
 /* ─────────────────────────────────────────────
    MOCK DATA
 ───────────────────────────────────────────── */
@@ -36,6 +41,7 @@ const STUDENT = {
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "◻" },
+  { id: "courses-available", label: "Courses Available", icon: "◦" },
   { id: "my-courses", label: "My Courses", icon: "▤" },
   { id: "progress", label: "My Progress", icon: "◎" },
   { id: "certificates", label: "Certificates", icon: "◈" },
@@ -47,6 +53,8 @@ const NAV_ITEMS = [
 ───────────────────────────────────────────── */
 export default function StudentDashboard() {
   const navigate = useNavigate();
+  // const [student , setStudent_detail] = useState(null); //no requirement of 
+  // local state as we are using redux to manage the student data
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("dashboard");
   const [profileOpen, setProfileOpen] = useState(false);
@@ -54,6 +62,22 @@ export default function StudentDashboard() {
   const [view, setView] = useState(null);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.studentDetails.student);
+
+  
+  const getStudentData = async () => {
+    try { 
+      const response = await axios.get("/api/auth/me", { withCredentials: true });
+      const studentData = response?.data?.data;
+      if (studentData) {
+        dispatch(setStudent(studentData)); // Update Redux store with student data
+      }
+    } catch (error) {
+      console.error("Failed to fetch student data:", error);
+    }
+  };
+
 
   useEffect(() => {
     const el = document.createElement("style");
@@ -70,6 +94,10 @@ export default function StudentDashboard() {
     };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
+  }, []);
+
+  useEffect(() => {
+    getStudentData();
   }, []);
 
   const go = (id) => { setActiveNav(id); setView(null); setSidebarOpen(false); };
@@ -91,6 +119,7 @@ export default function StudentDashboard() {
     if (view === "edit-profile") return <EditProfile onBack={() => setView(null)} />;
     switch (activeNav) {
       case "dashboard":    return <DashboardHome setView={setView} go={go} />;
+      case "courses-available": return <CoursesAvailable />;
       case "my-courses":   return <MyCourses />;
       case "progress":     return <MyProgress />;
       case "certificates": return <Certificates />;
@@ -106,7 +135,7 @@ export default function StudentDashboard() {
     <div className="sd">
       {sidebarOpen && <div className="sd-overlay" onClick={() => setSidebarOpen(false)} />}
 
-      {/* ── SIDEBAR ── */}
+      {/*SIDEBAR */}
       <aside className={`sd-sidebar${sidebarOpen ? " open" : ""}`}>
         <div className="sd-sb-head">
           <span className="sd-logo">Learn<em>Sphere</em></span>
@@ -213,7 +242,6 @@ function DashboardHome({ setView, go }) {
           <h1>Welcome back, <span className="acc">Mohit</span> </h1>
           <p>Continue your learning journey. You're on a 7-day streak!</p>
         </div>
-        <button className="sd-cta-btn" onClick={() => go("my-courses")}>Continue Learning →</button>
       </div>
 
       <div className="sd-stat-row">
@@ -233,29 +261,20 @@ function DashboardHome({ setView, go }) {
 
       <h2 className="sd-sec-title">Continue Learning</h2>
       <div className="sd-course-grid">
-        {STUDENT.courses.map((c) => <CourseCard key={c.id} c={c} />)}
+        <MyCourses />
       </div>
     </div>
   );
 }
 
-function MyCourses() {
-  return (
-    <div className="sd-page">
-      <h1 className="sd-h1">My Courses <span className="sd-count">{STUDENT.courses.length}</span></h1>
-      <div className="sd-course-grid">
-        {STUDENT.courses.map((c) => <CourseCard key={c.id} c={c} showBtn />)}
-      </div>
-    </div>
-  );
-}
+
 
 function MyProgress() {
   return (
     <div className="sd-page">
       <h1 className="sd-h1">My Progress</h1>
       <div className="sd-progress-list">
-        {STUDENT.courses.map((c) => (
+        {user.progress.map((c) => (
           <div className="sd-prog-card" key={c.id}>
             <div className="sd-prog-top">
               <div className="sd-prog-icon" style={{ background: c.color + "22" }}>📖</div>
@@ -280,42 +299,7 @@ function MyProgress() {
   );
 }
 
-function Certificates() {
-  return (
-    <div className="sd-page">
-      <h1 className="sd-h1">My Certificates</h1>
-      <div className="sd-cert-grid">
-        {STUDENT.courses.filter((c) => c.progress >= 90).map((c) => (
-          <div className="sd-cert-card" key={c.id}>
-            <div className="sd-cert-banner" style={{ background: `linear-gradient(135deg, ${c.color}55, ${c.color}22)` }}>
-              <span style={{ fontSize: 40 }}>🎓</span>
-            </div>
-            <div className="sd-cert-body">
-              <p className="sd-prog-name">{c.name}</p>
-              <span className="sd-prog-inst">Issued · {STUDENT.joinDate}</span>
-              <button className="sd-dl-btn" style={{ borderColor: c.color, color: c.color }}>Download PDF</button>
-            </div>
-          </div>
-        ))}
-        {STUDENT.courses.filter((c) => c.progress < 90).map((c) => (
-          <div className="sd-cert-card locked" key={c.id}>
-            <div className="sd-cert-banner" style={{ background: "#ffffff08" }}>
-              <span style={{ fontSize: 40 }}>🔒</span>
-            </div>
-            <div className="sd-cert-body">
-              <p className="sd-prog-name">{c.name}</p>
-              <span className="sd-prog-inst">Complete course to unlock</span>
-              <div className="sd-pbar" style={{ marginTop: 10 }}>
-                <div className="sd-pbar-fill" style={{ width: c.progress + "%", background: c.color }} />
-              </div>
-              <span style={{ fontSize: 12, color: "#666" }}>{c.progress}% complete</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+
 
 function Transactions() {
   return (
@@ -327,7 +311,7 @@ function Transactions() {
             <tr><th>Transaction ID</th><th>Date</th><th>Course</th><th>Amount</th><th>Status</th></tr>
           </thead>
           <tbody>
-            {STUDENT.transactions.map((t) => (
+            {user.transactions.map((t) => (
               <tr key={t.id}>
                 <td className="sd-txn-id">{t.id}</td>
                 <td>{t.date}</td>
@@ -345,7 +329,13 @@ function Transactions() {
 
 /* ─── Udemy-style View Profile ─── */
 function ViewProfile({ onBack }) {
-  const top = Math.round((STUDENT.rank / STUDENT.totalStudents) * 100);
+  const user = useSelector((state) => state.studentDetails.student);
+  const course = useSelector((state) => state.activeCourses.student);
+
+  const rank = Number(user?.rank ?? 0);
+  const totalStudents = Number(course?.enrolledStudents.length ?? 0);
+  const topPercent = totalStudents > 0 ? Math.round((rank / totalStudents) * 100) : 0;
+  
   return (
     <div className="sd-page">
       <button className="sd-back" onClick={onBack}>← Back to Dashboard</button>
@@ -354,36 +344,35 @@ function ViewProfile({ onBack }) {
       <div className="sd-vp-banner">
         <div className="sd-vp-gradient" />
         <div className="sd-vp-ava-wrap">
-          <div className="sd-vp-ava">{STUDENT.initials}</div>
+          <div className="sd-vp-ava">{user.initials}</div>
         </div>
       </div>
 
       {/* Profile Info */}
       <div className="sd-vp-body">
         <div className="sd-vp-left">
-          <h1 className="sd-vp-name">{STUDENT.name}</h1>
-          <p className="sd-vp-bio">{STUDENT.bio}</p>
+          <h1 className="sd-vp-name">{user.name}</h1>
+          <p className="sd-vp-bio">{user.bio}</p>
           <div className="sd-vp-meta">
-            <span>📍 {STUDENT.location}</span>
-            <span>🌐 {STUDENT.website}</span>
-            <span>📅 Joined {STUDENT.joinDate}</span>
+            <span>📍 {user.location}</span>
+            <span>🌐 {user.website}</span>
+            <span>📅 Joined {user.joinDate}</span>
           </div>
         </div>
         <div className="sd-rank-card">
           <span className="sd-rank-ico">🏅</span>
-          <span className="sd-rank-num">#{STUDENT.rank}</span>
+          <span className="sd-rank-num">#{user.rank}</span>
           <span className="sd-rank-lbl">Global Rank</span>
-          <span className="sd-rank-sub">Top {top}% of all students</span>
+          <span className="sd-rank-sub">Top {topPercent}% of all students</span>
         </div>
       </div>
 
       {/* Stats strip */}
       <div className="sd-vp-stats">
         {[
-          { val: STUDENT.courses.length, lbl: "Courses Enrolled" },
-          { val: "1", lbl: "Certificates Earned" },
-          { val: "47h", lbl: "Total Learning Time" },
-          { val: `Top ${top}%`, lbl: "Percentile Rank" },
+          { val: user.enrolledCourses.length, lbl: "Courses Enrolled" },
+          { val: user.certificates.length, lbl: "Certificates Earned" },
+          { val: `Top ${topPercent}%`, lbl: "Percentile Rank" },
         ].map((s) => (
           <div className="sd-vp-stat" key={s.lbl}>
             <span className="sd-vp-stat-val">{s.val}</span>
@@ -395,7 +384,7 @@ function ViewProfile({ onBack }) {
       {/* Course Progress */}
       <h2 className="sd-sec-title" style={{ marginTop: 32 }}>Course Progress</h2>
       <div className="sd-progress-list">
-        {STUDENT.courses.map((c) => (
+        {user.enrolledCourses.map((c) => (
           <div className="sd-prog-card" key={c.id}>
             <div className="sd-prog-top">
               <div className="sd-prog-icon" style={{ background: c.color + "22", fontSize: 22 }}>📖</div>
@@ -421,67 +410,97 @@ function ViewProfile({ onBack }) {
 }
 
 function EditProfile({ onBack }) {
+  const user = useSelector((state) => state.studentDetails.student);
+  const dispatch = useDispatch();
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    location: "",
+    website: "",
+    bio: "",
+  });
+
+  useEffect(() => {
+    setForm({
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+      location: user?.location || "",
+      website: user?.website || "",
+      bio: user?.bio || "",
+    });
+  }, [user]);
+
+  const initials = String(form.name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "S";
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    dispatch(updateStudent(form));
+    onBack();
+  };
+
   return (
     <div className="sd-page">
-      <button className="sd-back" onClick={onBack}>← Back</button>
+      <button className="sd-back" onClick={onBack}>Back</button>
       <h1 className="sd-h1">Edit Profile</h1>
       <div className="sd-edit-wrap">
         <div className="sd-edit-ava-col">
-          <div className="sd-vp-ava" style={{ margin: "0 auto" }}>{STUDENT.initials}</div>
+          <div className="sd-vp-ava" style={{ margin: "0 auto" }}>{initials}</div>
           <button className="sd-upload-btn">Change Photo</button>
-          <p className="sd-edit-hint">JPG, PNG or GIF · Max 2MB</p>
+          <p className="sd-edit-hint">JPG, PNG or GIF - Max 2MB</p>
         </div>
-        <div className="sd-edit-form">
+        <form className="sd-edit-form" onSubmit={handleSave}>
           <div className="sd-form-grid">
             {[
-              { label: "Full Name", value: STUDENT.name, type: "text" },
-              { label: "Email Address", value: STUDENT.email, type: "email" },
-              { label: "Phone", value: STUDENT.phone, type: "tel" },
-              { label: "Location", value: STUDENT.location, type: "text" },
-              { label: "Website", value: STUDENT.website, type: "text" },
+              { label: "Full Name", key: "name", type: "text" },
+              { label: "Email Address", key: "email", type: "email" },
+              { label: "Phone", key: "phone", type: "tel" },
+              { label: "Location", key: "location", type: "text" },
+              { label: "Website", key: "website", type: "text" },
             ].map((f) => (
               <div className="sd-fgroup" key={f.label}>
                 <label>{f.label}</label>
-                <input type={f.type} defaultValue={f.value} />
+                <input
+                  type={f.type}
+                  name={f.key}
+                  value={form[f.key]}
+                  onChange={handleChange}
+                />
               </div>
             ))}
           </div>
           <div className="sd-fgroup">
             <label>Bio</label>
-            <textarea defaultValue={STUDENT.bio} rows={4} />
+            <textarea
+              name="bio"
+              value={form.bio}
+              onChange={handleChange}
+              rows={4}
+            />
           </div>
           <div className="sd-form-actions">
-            <button className="sd-btn-cancel" onClick={onBack}>Cancel</button>
-            <button className="sd-btn-save">Save Changes</button>
+            <button type="button" className="sd-btn-cancel" onClick={onBack}>Cancel</button>
+            <button type="submit" className="sd-btn-save" onClick = {() => alert("Changes saved!")}>Save Changes</button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
 }
+/* Shared Card */
 
-/* ─── Shared Card ─── */
-function CourseCard({ c, showBtn }) {
-  return (
-    <div className="sd-ccard">
-      <div className="sd-ccard-thumb" style={{ background: `linear-gradient(135deg, ${c.color}33, ${c.color}11)` }}>
-        <span style={{ fontSize: 36 }}>📖</span>
-        <span className="sd-ccard-cat" style={{ background: c.color }}>{c.category}</span>
-      </div>
-      <div className="sd-ccard-body">
-        <p className="sd-ccard-name">{c.name}</p>
-        <span className="sd-ccard-inst">{c.instructor}</span>
-        <div className="sd-pbar" style={{ margin: "10px 0 4px" }}>
-          <div className="sd-pbar-fill" style={{ width: c.progress + "%", background: c.color }} />
-        </div>
-        <div className="sd-ccard-foot">
-          <span className="sd-prog-inst">{c.completed}/{c.total} lessons · {c.progress}%</span>
-          {showBtn && <button className="sd-cont-btn" style={{ borderColor: c.color, color: c.color }}>Continue</button>}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─────────────────────────────────────────────
    STYLES
@@ -586,6 +605,34 @@ const STYLES = `
 .sd-cont-btn { font-size:12px; font-family:inherit; background:none; border:1px solid; padding:5px 12px; border-radius:8px; cursor:pointer; transition:all .2s; }
 .sd-cont-btn:hover { opacity:.75; }
 
+/* COURSES AVAILABLE */
+.sd-avail-search-wrap { max-width:760px; margin:0 auto 18px; display:flex; align-items:center; gap:10px; }
+.sd-avail-input { flex:1; min-width:160px; background:var(--card); border:1px solid var(--border-med); color:var(--text-primary); font-family:inherit; font-size:13.5px; padding:10px 14px; border-radius:10px; outline:none; }
+.sd-avail-input::placeholder { color:var(--text-secondary); }
+.sd-avail-input:focus { border-color:var(--header); box-shadow:0 0 0 2px rgba(126,181,107,0.22); }
+.sd-avail-search-btn, .sd-avail-filter-btn { border:1px solid rgba(0,0,0,0.12); background:var(--header); color:#fff; font-family:inherit; border-radius:10px; cursor:pointer; transition:opacity .2s, transform .2s; }
+.sd-avail-search-btn { padding:10px 16px; font-size:13px; font-weight:600; }
+.sd-avail-filter-btn { width:40px; height:40px; display:grid; place-items:center; background:var(--header); }
+.sd-avail-search-btn:hover, .sd-avail-filter-btn:hover { opacity:.95; transform:translateY(-1px); }
+.sd-avail-filters { max-width:760px; margin:0 auto 20px; display:flex; gap:10px; }
+.sd-avail-select { flex:1; min-width:150px; background:var(--card); border:1px solid var(--border-med); color:var(--text-primary); font-family:inherit; font-size:13px; border-radius:10px; padding:10px 12px; outline:none; }
+.sd-avail-select:focus { border-color:var(--header); box-shadow:0 0 0 2px rgba(126,181,107,0.2); }
+.sd-avail-results { margin-top:8px; }
+.sd-avail-empty { color:#666; margin:12px 0 18px; font-size:13px; text-align:center; }
+.sd-avail-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:20px; }
+.sd-avail-card { background:var(--card); border:1px solid var(--border-med); border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.08); transition:transform .2s, background-color .2s, border-color .2s; }
+.sd-avail-card:hover { transform:translateY(-3px); background:var(--card-hover); border-color:rgba(0,0,0,0.18); }
+.sd-avail-top { position:relative; height:155px; }
+.sd-avail-image { width:100%; height:100%; object-fit:cover; display:block; }
+.sd-avail-level { position:absolute; right:10px; top:10px; font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px; color:#fff; background:#00000088; }
+.sd-avail-cat { margin:14px 16px 8px; color:var(--accent); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.sd-avail-name { margin:0 16px; font-size:15px; font-weight:700; color:var(--text-primary); line-height:1.4; }
+.sd-avail-desc { margin:10px 16px 12px; font-size:12.5px; color:var(--text-secondary); line-height:1.5; min-height:56px; }
+.sd-avail-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 16px 16px; }
+.sd-avail-stu { font-size:12px; color:var(--text-secondary); }
+.sd-avail-enroll { font-size:12px; font-family:inherit; background:transparent; border:1px solid rgba(31,92,16,0.35); color:var(--accent); padding:6px 14px; border-radius:8px; cursor:pointer; transition:all .2s; }
+.sd-avail-enroll:hover { background:var(--accent-glow); }
+
 /* PROGRESS */
 .sd-pbar { background:#ffffff0a; border-radius:4px; height:6px; overflow:hidden; }
 .sd-pbar-fill { height:100%; border-radius:4px; transition:width .5s ease; }
@@ -665,6 +712,10 @@ const STYLES = `
   .sd-stat-row { grid-template-columns:1fr 1fr; }
   .sd-course-grid { grid-template-columns:1fr; }
   .sd-vp-stats { grid-template-columns:1fr 1fr; }
+  .sd-avail-search-wrap { flex-wrap:wrap; }
+  .sd-avail-search-btn { flex:1; }
+  .sd-avail-filter-btn { width:46px; }
+  .sd-avail-filters { flex-direction:column; }
 }
 
 /* Project theme overrides */
@@ -705,3 +756,4 @@ const STYLES = `
 .sd-tag.green { background:rgba(112,171,93,0.16); color:var(--accent); }
 .sd-tag.red { background:rgba(186,58,58,0.1); color:#ba3a3a; }
 `;
+
