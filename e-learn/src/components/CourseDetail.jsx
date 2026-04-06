@@ -1,4 +1,6 @@
 import "./CourseDetail.css";
+import {useDispatch, useSelector} from "react-redux";
+const course = useSelector(state => state.activeCourse.course);
 
 const sampleCourse = {
   title: "Full Stack Web Development",
