@@ -1,6 +1,5 @@
 import "./CourseDetail.css";
-import {useDispatch, useSelector} from "react-redux";
-const course = useSelector(state => state.activeCourse.course);
+import { useSelector } from "react-redux";
 
 const sampleCourse = {
   title: "Full Stack Web Development",
@@ -57,7 +56,11 @@ function getRatingsCount(ratings) {
   return Array.isArray(ratings) ? ratings.length : 0;
 }
 
-export default function CourseDetail({ course = sampleCourse }) {
+export default function CourseDetail({ course: courseProp }) {
+  const { courses, selectedCourseId } = useSelector((state) => state.activeCourses);
+  const courseFromStore = courses.find((item) => item._id === selectedCourseId) || null;
+  const course = courseProp || courseFromStore || sampleCourse;
+
   const title = course?.title || "Untitled Course";
   const description = course?.description || "No description available.";
   const instructorName = resolveInstructorName(course?.instructor);

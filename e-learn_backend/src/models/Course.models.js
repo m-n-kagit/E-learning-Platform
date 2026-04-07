@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import "Lesson.models.js"; // Ensure Lesson model is registered before referencing it
 const courseSchema = new mongoose.Schema(
   {
     title: {
@@ -6,6 +7,10 @@ const courseSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    lessons:[{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Lesson"
+    }],
 
     description: {
       type: String,

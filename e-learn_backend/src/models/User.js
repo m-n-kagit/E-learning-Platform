@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import buildProfileInitial from "../utils/profileInitials.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -44,6 +45,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    initial: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     
   },
   { timestamps: true } // Adds createdAt and updatedAt automatically
@@ -57,6 +63,9 @@ userSchema.pre("save", async function () {  //this refers to the
 //  user document being saved , pre here 
 // indicates that this function should run before the document
 //  is saved to the database.
+  if (this.isModified("name") || !this.initial) {
+    this.initial = buildProfileInitial(this.name);
+  }
 
   // Only hash if password field was actually modified
   if (!this.isModified("password") || this.$locals?.passwordAlreadyHashed) return;

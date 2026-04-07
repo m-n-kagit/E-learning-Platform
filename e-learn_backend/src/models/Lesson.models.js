@@ -29,7 +29,7 @@ const lessonSchema = new mongoose.Schema(
       default: 0
     },
 
-    order: {
+    order: {// position of the lesson within the course
       type: Number,
       required: true
     },

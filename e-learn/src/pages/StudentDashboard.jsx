@@ -51,6 +51,12 @@ const NAV_ITEMS = [
 /* ─────────────────────────────────────────────
    ROOT COMPONENT
 ───────────────────────────────────────────── */
+const deriveInitials = (name = "") => {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "";
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return parts[0][0].toUpperCase();
+};
 export default function StudentDashboard() {
   const navigate = useNavigate();
   // const [student , setStudent_detail] = useState(null); //no requirement of 
@@ -64,6 +70,7 @@ export default function StudentDashboard() {
   const notifRef = useRef(null);
   const dispatch = useDispatch();
   const user = useSelector((state) => state.studentDetails.student);
+  const displayInitials = user?.initial || deriveInitials(user?.name) || STUDENT.initials;
 
   
   const getStudentData = async () => {
@@ -109,6 +116,7 @@ export default function StudentDashboard() {
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
+      localStorage.removeItem("hasSession");
       setProfileOpen(false);
       navigate("/login");
     }
@@ -152,7 +160,7 @@ export default function StudentDashboard() {
         </nav>
         <div className="sd-sb-footer">
           <div className="sd-sb-user">
-            <span className="sd-ava sm">{STUDENT.initials}</span>
+            <span className="sd-ava sm">{displayInitials}</span>
             <div>
               <div className="sd-sb-uname">{STUDENT.name}</div>
               <div className="sd-sb-uemail">{STUDENT.email}</div>
@@ -197,12 +205,12 @@ export default function StudentDashboard() {
           {/* Profile */}
           <div ref={profileRef} className="sd-profile-wrap">
             <button className="sd-ava-btn" onClick={() => setProfileOpen((v) => !v)}>
-              <span className="sd-ava">{STUDENT.initials}</span>
+              <span className="sd-ava">{displayInitials}</span>
             </button>
             {profileOpen && (
               <div className="sd-dropdown profile">
                 <div className="sd-dd-user">
-                  <span className="sd-ava md">{STUDENT.initials}</span>
+                  <span className="sd-ava md">{displayInitials}</span>
                   <div>
                     <div className="sd-dd-name">{STUDENT.name}</div>
                     <div className="sd-dd-email">{STUDENT.email}</div>
@@ -234,22 +242,23 @@ export default function StudentDashboard() {
 /* ─────────────────────────────────────────────
    PAGE COMPONENTS
 ───────────────────────────────────────────── */
-function DashboardHome({ setView, go }) {
+function DashboardHome() {
+  const user = useSelector((state) => state.studentDetails.student);
   return (
     <div className="sd-page">
       <div className="sd-page-head">
         <div>
-          <h1>Welcome back, <span className="acc">Mohit</span> </h1>
+          <h1>Welcome back, <span className="acc">{user?.name || "user"}</span> </h1>
           <p>Continue your learning journey. You're on a 7-day streak!</p>
         </div>
       </div>
 
       <div className="sd-stat-row">
         {[
-          { icon: "▤", label: "Enrolled", value: "3 Courses" },
-          { icon: "⏱", label: "Learned", value: "47 Hours" },
-          { icon: "🏅", label: "Global Rank", value: `#${STUDENT.rank}` },
-          { icon: "◈", label: "Certificates", value: "1 Earned" },
+          { icon: "▤", label: "Enrolled", value: user?.enrolledCourses.length  },
+          { icon: "⏱", label: "Learned", value: user?.learnedHours  },
+          { icon: "🏅", label: "Global Rank", value: `#${user?.rank || '_'}` },
+          { icon: "◈", label: "Certificates", value: user?.certificates || "1 Earned" },
         ].map((s) => (
           <div key={s.label} className="sd-stat-card">
             <span className="sd-stat-ico">{s.icon}</span>
@@ -270,11 +279,18 @@ function DashboardHome({ setView, go }) {
 
 
 function MyProgress() {
+  const user = useSelector((state) => state.studentDetails.student);
+  const progressCourses = Array.isArray(user?.progress)
+    ? user.progress
+    : Array.isArray(user?.enrolledCourses)
+      ? user.enrolledCourses
+      : STUDENT.courses;
+
   return (
     <div className="sd-page">
       <h1 className="sd-h1">My Progress</h1>
       <div className="sd-progress-list">
-        {user.progress.map((c) => (
+        {progressCourses.map((c) => (
           <div className="sd-prog-card" key={c.id}>
             <div className="sd-prog-top">
               <div className="sd-prog-icon" style={{ background: c.color + "22" }}>📖</div>
@@ -302,6 +318,11 @@ function MyProgress() {
 
 
 function Transactions() {
+  const user = useSelector((state) => state.studentDetails.student);
+  const transactions = Array.isArray(user?.transactions)
+    ? user.transactions
+    : STUDENT.transactions;
+
   return (
     <div className="sd-page">
       <h1 className="sd-h1">Transaction History</h1>
@@ -311,7 +332,7 @@ function Transactions() {
             <tr><th>Transaction ID</th><th>Date</th><th>Course</th><th>Amount</th><th>Status</th></tr>
           </thead>
           <tbody>
-            {user.transactions.map((t) => (
+            {transactions.map((t) => (
               <tr key={t.id}>
                 <td className="sd-txn-id">{t.id}</td>
                 <td>{t.date}</td>
@@ -344,7 +365,7 @@ function ViewProfile({ onBack }) {
       <div className="sd-vp-banner">
         <div className="sd-vp-gradient" />
         <div className="sd-vp-ava-wrap">
-          <div className="sd-vp-ava">{user.initials}</div>
+          <div className="sd-vp-ava">{user?.initial || deriveInitials(user?.name) || STUDENT.initials}</div>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
+//these cards are for only enrolled courses.
 
 export default function CourseCard({ c, showBtn }) {
   const dispatch = useDispatch();

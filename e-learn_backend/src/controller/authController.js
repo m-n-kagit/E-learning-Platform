@@ -12,6 +12,7 @@ import pass_validator from "./pass_validator.js";
 import uploadCloudinary from "../utils/cloudinery.js";
 import BlockedToken from "../models/Blocked_tokens.models.js";
 import virus_check from "../utils/virus_total.js";
+import buildProfileInitial from "../utils/profileInitials.js";
 
 const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 15 * 60 * 1000;
 const resetPasswordCookieMaxAge = 10 * 60 * 1000; // 10 minutes for password reset token
@@ -268,6 +269,10 @@ const getMe = async (req, res, next) => { //to get user
       res.status(404);
       throw new Error("User not found");
     }
+    if (!user.initial) {
+      user.initial = buildProfileInitial(user.name);
+      await user.save();
+    }
 
     res.status(200).json({
       success: true,
@@ -276,7 +281,8 @@ const getMe = async (req, res, next) => { //to get user
         name: user.name,
         email: user.email,
         role: user.role,
-        createdAt: user.createdAt,
+        initial: user.initial,
+        createdAt: user.createdAt
       },
     });
   } catch (error) {

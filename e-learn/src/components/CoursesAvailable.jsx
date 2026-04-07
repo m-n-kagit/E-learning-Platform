@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { addCourse, enrollStudent, selectCourse } from "../features/activeCoursesSlice";
+import CourseDetail from "./CourseDetail";
 import aiImage from "../images/Ai_image.jpg";
 import uiImage from "../images/UI_image.jpg";
 import cyberImage from "../images/Cyber_image.jpg";
@@ -64,12 +66,51 @@ const HOME_COURSES = [
 ];
 
 export default function CoursesAvailable() {
-  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const student = useSelector((state) => state.studentDetails.student);
+  const { courses: enrolledCourses, selectedCourseId } = useSelector((state) => state.activeCourses);
   const [queryDraft, setQueryDraft] = useState("");
   const [query, setQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [category, setCategory] = useState("All");
   const [level, setLevel] = useState("All");
+
+  const mapHomeCourseToSchema = (course) => {
+    const normalizedLevel = String(course?.lvl || "").toLowerCase();
+
+    return {
+      _id: String(course.id),
+      title: course.name,
+      description: course.desc,
+      instructor: "Course Admin",
+      thumbnail: course.icon,
+      price: 0,
+      category: course.cat,
+      level: ["beginner", "intermediate", "advanced"].includes(normalizedLevel)
+        ? normalizedLevel
+        : "beginner",
+      lessons: [],
+      enrolledStudents: [],
+      ratings: [],
+      averageRating: 0,
+      isPublished: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  };
+
+  const handleEnroll = (course) => {
+    const mappedCourse = mapHomeCourseToSchema(course);
+    const studentId = student?._id || "local-student";
+    const alreadyAdded = enrolledCourses.some((item) => item._id === mappedCourse._id);
+
+    if (!alreadyAdded) {
+      dispatch(addCourse(mappedCourse));
+    }
+
+    dispatch(enrollStudent({ courseId: mappedCourse._id, studentId }));
+    dispatch(selectCourse(mappedCourse._id));
+  };
 
   const categories = useMemo(
     () => ["All", ...new Set(HOME_COURSES.map((c) => c.cat))],
@@ -171,14 +212,20 @@ export default function CoursesAvailable() {
               <p className="sd-avail-desc">{c.desc}</p>
               <div className="sd-avail-foot">
                 <span className="sd-avail-stu">{c.stu} students</span>
-                <button className="sd-avail-enroll" onClick={() => navigate("/explore")}>
-                  Enroll
+                <button className="sd-avail-enroll" onClick={() => handleEnroll(c)}>
+                  {selectedCourseId === String(c.id) ? "View Details" : "Enroll"}
                 </button>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {selectedCourseId && (
+        <div style={{ marginTop: "24px" }}>
+          <CourseDetail />
+        </div>
+      )}
     </div>
   );
 }

@@ -29,6 +29,8 @@ const updateDetails = async (req, res, next) => { //to get user
         name: user.name,
         email: user.email,
         role: user.role,
+        initial: user.initial,
+        initials: user.initial,
         bio: user.bio,
         location: user.location,
         profilePicture: user.profilePicture,

@@ -104,6 +104,7 @@ export default function GlobalAdminDashboard() {
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
+      localStorage.removeItem("hasSession");
       setProfileOpen(false);
       navigate("/login");
     }

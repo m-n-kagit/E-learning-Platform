@@ -37,6 +37,7 @@ const normalizeCourse = (course = {}) => {
 
 const initialState = {
   courses: [],
+  selectedCourseId: null,
 };
 
 const activeCoursesSlice = createSlice({
@@ -50,6 +51,14 @@ const activeCoursesSlice = createSlice({
         // In this case, we expect action.payload to be an array of course objects.
       const list = Array.isArray(action.payload) ? action.payload : [];
       state.courses = list.map(normalizeCourse);
+    },
+
+    selectCourse(state, action) {
+      state.selectedCourseId = action.payload || null;
+    },
+
+    clearSelectedCourse(state) {
+      state.selectedCourseId = null;
     },
 
     addCourse(state, action) {
@@ -122,6 +131,8 @@ const activeCoursesSlice = createSlice({
 
 export const {
   setCourses,
+  selectCourse,
+  clearSelectedCourse,
   addCourse,
   updateCourse,
   removeCourse,
