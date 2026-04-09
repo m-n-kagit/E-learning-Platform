@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
-import { setCourseAdmin } from "../features/course_admin_detailsSlice";
+import { setCourseAdmin, updateCourseAdmin } from "../features/course_admin_detailsSlice";
+import CourseUpload from "../components/Course_build";
 
 /* ─────────────────────────────────────────────
    MOCK DATA
@@ -85,6 +86,10 @@ export default function CourseAdminDashboard() {
     name: cAdmin?.name || ADMIN.name,
     email: cAdmin?.email || ADMIN.email,
     initials: cAdmin?.initial || cAdmin?.initials || deriveInitials(cAdmin?.name) || ADMIN.initials,
+    bio: cAdmin?.bio || ADMIN.bio,
+    location: cAdmin?.location || ADMIN.location,
+    phone: cAdmin?.phone || ADMIN.phone,
+    joinDate: cAdmin?.joinDate || ADMIN.joinDate,
   };
 
   const getCourseAdminData = async () => {
@@ -117,11 +122,14 @@ export default function CourseAdminDashboard() {
   }, []);
 
   useEffect(() => {
-    getCourseAdminData();
-  }, []);
+    if (!cAdmin?._id) {
+      getCourseAdminData();
+    }
+  }, [cAdmin?._id]);
 
   const go = (id) => { setActiveNav(id); setView(null); setSidebarOpen(false); };
-  const unread = ADMIN.notifications.filter((n) => !n.read).length;
+  const adminNotifications = Array.isArray(currentAdmin?.notifications) ? currentAdmin.notifications : [];
+  const unread = adminNotifications.filter((n) => !n.read).length;
 
   const handleLogout = async () => {
     try {
@@ -202,7 +210,7 @@ export default function CourseAdminDashboard() {
             {notifOpen && (
               <div className="ca-dropdown notif">
                 <div className="ca-dd-title">Notifications <span className="ca-dd-count">{unread} new</span></div>
-                {ADMIN.notifications.map((n) => (
+                {adminNotifications.map((n) => (
                   <div key={n.id} className={`ca-notif-row${!n.read ? " unread" : ""}`}>
                     <div className="ca-notif-dot" />
                     <div><p>{n.text}</p><span>{n.time}</span></div>
@@ -254,6 +262,7 @@ export default function CourseAdminDashboard() {
    PAGE COMPONENTS
 ───────────────────────────────────────────── */
 function DashboardHome({ setView, go, admin }) {
+  
   const totalStudents = ADMIN.courses.reduce((a, c) => a + c.students, 0);
   const totalRevenue = ADMIN.courses.reduce((a, c) => a + c.revenue, 0);
   const avgRating = (ADMIN.courses.reduce((a, c) => a + c.rating, 0) / ADMIN.courses.length).toFixed(1);
@@ -263,7 +272,7 @@ function DashboardHome({ setView, go, admin }) {
       <div className="ca-page-head">
         <div>
           <h1>Instructor Dashboard <span className="acc">✦</span></h1>
-          <p>Welcome back, {(admin?.name || ADMIN.name).split(" ")[1]}. Your courses are performing well.</p>
+          <p>Welcome back, {(admin?.name || ADMIN.name).split(" ")[0]}. Your courses are performing well.</p>
         </div>
         <button className="ca-cta-btn" onClick={() => go("course-upload")}>+ Upload Course</button>
       </div>
@@ -284,22 +293,6 @@ function DashboardHome({ setView, go, admin }) {
       </div>
 
       {/* Income mini bar chart */}
-      <h2 className="ca-sec-title">Revenue – Last 7 Months</h2>
-      <div className="ca-income-chart">
-        {ADMIN.monthlyIncome.map((m) => {
-          const max = Math.max(...ADMIN.monthlyIncome.map((x) => x.amount));
-          const pct = (m.amount / max) * 100;
-          return (
-            <div key={m.month} className="ca-bar-col">
-              <span className="ca-bar-val">₹{Math.round(m.amount / 1000)}k</span>
-              <div className="ca-bar-wrap">
-                <div className="ca-bar-fill" style={{ height: pct + "%" }} />
-              </div>
-              <span className="ca-bar-lbl">{m.month}</span>
-            </div>
-          );
-        })}
-      </div>
 
       <h2 className="ca-sec-title" style={{ marginTop: 32 }}>Your Courses</h2>
       <div className="ca-course-grid">
@@ -320,80 +313,82 @@ function MyCourses() {
   );
 }
 
-function CourseUpload() {
-  const [tab, setTab] = useState("video");
-  const quizzes = [
-    { id: 1, title: "Week 1 - HTML & CSS Basics", course: "Full-Stack Web Dev", questions: 15, submissions: 420, avgScore: 78 },
-    { id: 2, title: "Module 3 - REST APIs", course: "Node.js Masterclass", questions: 12, submissions: 300, avgScore: 72 },
-    { id: 3, title: "React Hooks Deep Dive", course: "React Advanced Patterns", questions: 20, submissions: 180, avgScore: 85 },
-  ];
+// function CourseUpload() {
+//   const [tab, setTab] = useState("video");
+//   const quizzes = [
+//     { id: 1, title: "Week 1 - HTML & CSS Basics", course: "Full-Stack Web Dev", questions: 15, submissions: 420, avgScore: 78 },
+//     { id: 2, title: "Module 3 - REST APIs", course: "Node.js Masterclass", questions: 12, submissions: 300, avgScore: 72 },
+//     { id: 3, title: "React Hooks Deep Dive", course: "React Advanced Patterns", questions: 20, submissions: 180, avgScore: 85 },
+//   ];
 
-  return (
-    <div className="ca-page">
-      <h1 className="ca-h1">Course Upload</h1>
-      <div className="ca-tabs">
-        {["video", "article", "document"].map((t) => (
-          <button key={t} className={`ca-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
-            {t === "video" ? "Video" : t === "article" ? "Article" : "Document"}
-          </button>
-        ))}
-      </div>
-      <div className="ca-upload-form">
-        <div className="ca-fgroup">
-          <label>Select Course</label>
-          <select>
-            {ADMIN.courses.map((c) => <option key={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-        <div className="ca-fgroup">
-          <label>Content Title</label>
-          <input type="text" placeholder={`Enter ${tab} title`} />
-        </div>
-        <div className="ca-fgroup">
-          <label>Description</label>
-          <textarea rows={3} placeholder="Brief description of this content..." />
-        </div>
-        <div className="ca-upload-zone">
-          <span className="ca-upload-ico">Upload</span>
-          <p>Drag and drop or <span className="acc">browse files</span></p>
-          <span className="ca-upload-hint">{tab === "video" ? "MP4, MOV - Max 2GB" : "PDF, DOCX - Max 50MB"}</span>
-        </div>
-        <button className="ca-cta-btn" style={{ marginTop: 16 }}>
-          Upload {tab.charAt(0).toUpperCase() + tab.slice(1)}
-        </button>
-      </div>
+//   return (
+//     <div className="ca-page">
+//       <h1 className="ca-h1">Course Upload</h1>
+//       <div className="ca-tabs">
+//         {["video", "article", "document"].map((t) => (
+//           <button key={t} className={`ca-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
+//             {t === "video" ? "Video" : t === "article" ? "Article" : "Document"}
+//           </button>
+//         ))}
+//       </div>
+//       <div className="ca-upload-form">
+//         <div className="ca-fgroup">
+//           <label>Select Course</label>
+//           <select>
+//             {ADMIN.courses.map((c) => <option key={c.id}>{c.name}</option>)}
+//           </select>
+//         </div>
+//         <div className="ca-fgroup">
+//           <label>Content Title</label>
+//           <input type="text" placeholder={`Enter ${tab} title`} />
+//         </div>
+//         <div className="ca-fgroup">
+//           <label>Description</label>
+//           <textarea rows={3} placeholder="Brief description of this content..." />
+//         </div>
+//         <div className="ca-upload-zone">
+//           <span className="ca-upload-ico">Upload</span>
+//           <p>Drag and drop or <span className="acc">browse files</span></p>
+//           <span className="ca-upload-hint">{tab === "video" ? "MP4, MOV - Max 2GB" : "PDF, DOCX - Max 50MB"}</span>
+//         </div>
+//         <button className="ca-cta-btn" style={{ marginTop: 16 }}>
+//           Upload {tab.charAt(0).toUpperCase() + tab.slice(1)}
+//         </button>
+//       </div>
 
-      <div className="ca-page-head" style={{ marginTop: 28 }}>
-        <h1 className="ca-h1" style={{ margin: 0 }}>Quiz Builder</h1>
-        <button className="ca-cta-btn">+ New Quiz</button>
-      </div>
-      <div className="ca-table-wrap">
-        <table className="ca-table">
-          <thead>
-            <tr><th>Quiz Title</th><th>Course</th><th>Questions</th><th>Submissions</th><th>Avg Score</th><th>Actions</th></tr>
-          </thead>
-          <tbody>
-            {quizzes.map((q) => (
-              <tr key={q.id}>
-                <td className="ca-bold">{q.title}</td>
-                <td><span className="ca-tag blue">{q.course}</span></td>
-                <td>{q.questions}</td>
-                <td>{q.submissions}</td>
-                <td><span className={`ca-tag ${q.avgScore >= 80 ? "green" : "orange"}`}>{q.avgScore}%</span></td>
-                <td>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button className="ca-action-btn">Edit</button>
-                    <button className="ca-action-btn red">Delete</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+//       <div className="ca-page-head" style={{ marginTop: 28 }}>
+//         <h1 className="ca-h1" style={{ margin: 0 }}>Quiz Builder</h1>
+//         <button className="ca-cta-btn">+ New Quiz</button>
+//       </div>
+//       <div className="ca-table-wrap">
+//         <table className="ca-table">
+//           <thead>
+//             <tr><th>Quiz Title</th><th>Course</th><th>Questions</th><th>Submissions</th><th>Avg Score</th><th>Actions</th></tr>
+//           </thead>
+//           <tbody>
+//             {quizzes.map((q) => (
+//               <tr key={q.id}>
+//                 <td className="ca-bold">{q.title}</td>
+//                 <td><span className="ca-tag blue">{q.course}</span></td>
+//                 <td>{q.questions}</td>
+//                 <td>{q.submissions}</td>
+//                 <td><span className={`ca-tag ${q.avgScore >= 80 ? "green" : "orange"}`}>{q.avgScore}%</span></td>
+//                 <td>
+//                   <div style={{ display: "flex", gap: 8 }}>
+//                     <button className="ca-action-btn">Edit</button>
+//                     <button className="ca-action-btn red">Delete</button>
+//                   </div>
+//                 </td>
+//               </tr>
+//             ))}
+//           </tbody>
+//         </table>
+//       </div>
+//     </div>
+//   );
+// }
+
+
 function StudentPerformance() {
   return (
     <div className="ca-page">
@@ -523,33 +518,39 @@ function Transactions() {
 
 /* ─── Profile Views ─── */
 function ViewProfile({ onBack, admin }) {
+  const profile = admin || ADMIN;
+  const courses = Array.isArray(profile.courses) && profile.courses.length ? profile.courses : ADMIN.courses;
+  const totalStudents = courses.reduce((a, c) => a + c.students, 0);
+  const avgRating = (courses.reduce((a, c) => a + c.rating, 0) / Math.max(courses.length, 1)).toFixed(1);
+  const totalRevenue = courses.reduce((a, c) => a + c.revenue, 0);
+
   return (
     <div className="ca-page">
-      <button className="ca-back" onClick={onBack}>← Back to Dashboard</button>
+      <button className="ca-back" onClick={onBack}>Back to Dashboard</button>
       <div className="ca-vp-banner">
         <div className="ca-vp-grad" />
         <div className="ca-vp-ava-wrap">
-          <div className="ca-vp-ava">{admin?.initials || ADMIN.initials}</div>
+          <div className="ca-vp-ava">{profile.initials || ADMIN.initials}</div>
           <span className="ca-vp-role-tag">Course Instructor</span>
         </div>
       </div>
       <div className="ca-vp-body">
         <div>
-          <h1 className="ca-vp-name">{admin?.name || ADMIN.name}</h1>
-          <p className="ca-vp-bio">{ADMIN.bio}</p>
+          <h1 className="ca-vp-name">{profile.name || ADMIN.name}</h1>
+          <p className="ca-vp-bio">{profile.bio || ADMIN.bio}</p>
           <div className="ca-vp-meta">
-            <span>📍 {ADMIN.location}</span>
-            <span>📅 Joined {ADMIN.joinDate}</span>
-            <span>✉ {admin?.email || ADMIN.email}</span>
+            <span>Location {profile.location || ADMIN.location}</span>
+            <span>Joined {profile.joinDate || ADMIN.joinDate}</span>
+            <span>Email {profile.email || ADMIN.email}</span>
           </div>
         </div>
       </div>
       <div className="ca-vp-stats">
         {[
-          { val: ADMIN.courses.length, lbl: "Courses Created" },
-          { val: ADMIN.courses.reduce((a, c) => a + c.students, 0).toLocaleString(), lbl: "Total Students" },
-          { val: (ADMIN.courses.reduce((a, c) => a + c.rating, 0) / ADMIN.courses.length).toFixed(1), lbl: "Avg Rating" },
-          { val: `₹${(ADMIN.courses.reduce((a, c) => a + c.revenue, 0) / 100000).toFixed(1)}L`, lbl: "Total Revenue" },
+          { val: courses.length, lbl: "Courses Created" },
+          { val: totalStudents.toLocaleString(), lbl: "Total Students" },
+          { val: avgRating, lbl: "Avg Rating" },
+          { val: `Rs ${(totalRevenue / 100000).toFixed(1)}L`, lbl: "Total Revenue" },
         ].map((s) => (
           <div className="ca-vp-stat" key={s.lbl}>
             <span className="ca-vp-stat-val">{s.val}</span>
@@ -560,7 +561,6 @@ function ViewProfile({ onBack, admin }) {
     </div>
   );
 }
-
 function MonthlyIncome({ onBack }) {
   const max = Math.max(...ADMIN.monthlyIncome.map((m) => m.amount));
   return (
@@ -646,50 +646,100 @@ function TeachingReviews({ onBack }) {
 }
 
 function EditProfile({ onBack, admin }) {
+  const dispatch = useDispatch();
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    location: "",
+    bio: "",
+  });
+
+  useEffect(() => {
+    setForm({
+      name: admin?.name || ADMIN.name,
+      email: admin?.email || ADMIN.email,
+      phone: admin?.phone || ADMIN.phone,
+      location: admin?.location || ADMIN.location,
+      bio: admin?.bio || ADMIN.bio,
+    });
+  }, [admin]);
+
+  const initials = (admin?.initials || deriveInitials(form.name) || ADMIN.initials).slice(0, 2);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    dispatch(updateCourseAdmin({
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      location: form.location,
+      bio: form.bio,
+      initials: deriveInitials(form.name),
+      initial: deriveInitials(form.name),
+    }));
+
+    try {
+      await axios.patch("/api/auth/update-profile", {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        location: form.location,
+        bio: form.bio,
+      }, { withCredentials: true });
+    } catch (error) {
+      console.error("Failed to sync profile update:", error);
+    }
+
+    onBack();
+  };
+
   return (
     <div className="ca-page">
-      <button className="ca-back" onClick={onBack}>← Back</button>
+      <button className="ca-back" onClick={onBack}>Back</button>
       <h1 className="ca-h1">Edit Profile</h1>
       <div className="ca-edit-wrap">
         <div className="ca-edit-ava-col">
-          <div className="ca-vp-ava" style={{ margin: "0 auto" }}>{admin?.initials || ADMIN.initials}</div>
-          <button className="ca-upload-photo-btn">Change Photo</button>
+          <div className="ca-vp-ava" style={{ margin: "0 auto" }}>{initials}</div>
+          <button className="ca-upload-photo-btn" type="button">Change Photo</button>
         </div>
-        <div className="ca-edit-form">
+        <form className="ca-edit-form" onSubmit={handleSave}>
           <div className="ca-form-grid">
             {[
-              { label: "Full Name", value: admin?.name || ADMIN.name },
-              { label: "Email", value: admin?.email || ADMIN.email },
-              { label: "Phone", value: ADMIN.phone },
-              { label: "Location", value: ADMIN.location },
+              { label: "Full Name", key: "name", type: "text" },
+              { label: "Email", key: "email", type: "email" },
+              { label: "Phone", key: "phone", type: "text" },
+              { label: "Location", key: "location", type: "text" },
             ].map((f) => (
               <div className="ca-fgroup" key={f.label}>
                 <label>{f.label}</label>
-                <input type="text" defaultValue={f.value} />
+                <input type={f.type} name={f.key} value={form[f.key]} onChange={handleChange} />
               </div>
             ))}
           </div>
           <div className="ca-fgroup">
             <label>Bio</label>
-            <textarea defaultValue={ADMIN.bio} rows={4} />
+            <textarea name="bio" value={form.bio} onChange={handleChange} rows={4} />
           </div>
           <div className="ca-form-actions">
-            <button className="ca-btn-cancel" onClick={onBack}>Cancel</button>
-            <button className="ca-btn-save">Save Changes</button>
+            <button className="ca-btn-cancel" type="button" onClick={onBack}>Cancel</button>
+            <button className="ca-btn-save" type="submit">Save Changes</button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
 }
-
-/* ─── Admin Course Card ─── */
 function AdminCourseCard({ c, showActions }) {
   return (
     <div className="ca-ccard">
       <div className="ca-ccard-thumb" style={{ background: `linear-gradient(135deg, ${c.color}33, ${c.color}11)` }}>
         <span style={{ fontSize: 36 }}>📖</span>
-        <span className={`ca-ccard-status ${c.status === "Live" ? "green" : "orange"}`}>{c.status}</span>
       </div>
       <div className="ca-ccard-body">
         <p className="ca-ccard-name">{c.name}</p>
@@ -697,6 +747,7 @@ function AdminCourseCard({ c, showActions }) {
           <span>👥 {c.students.toLocaleString()}</span>
           <span>⭐ {c.rating}</span>
           <span>₹{(c.revenue / 1000).toFixed(0)}k</span>
+          <button className="ca-action-btn"> Check<em> Status</em> </button>
         </div>
         {showActions && (
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -783,7 +834,7 @@ const STYLES = `
 .ca-dd-name { font-size:13px; font-weight:600; }
 .ca-dd-email { font-size:11px; color:#666; }
 .ca-dd-divider { height:1px; background:#ffffff0a; }
-.ca-dd-item { display:block; width:100%; padding:11px 16px; background:none; border:none; color:#aaa; font-family:inherit; font-size:13.5px; text-align:left; cursor:pointer; transition:all .15s; }
+.ca-dd-item { display:block; width:100%; padding:11px 16px; background:none; border:none; color:#011402; font-family:inherit; font-size:13.5px; text-align:left; cursor:pointer; transition:all .15s; }
 .ca-dd-item:hover { background:#ffffff08; color:#e2e2f0; }
 .ca-dd-item.danger { color:#ff5f5f; }
 .ca-dd-item.danger:hover { background:#ff5f5f11; }
@@ -840,7 +891,7 @@ const STYLES = `
 .ca-tag.orange { background:#f9731622; color:#f97316; }
 .ca-tag.red { background:#ff5f5f22; color:#ff5f5f; }
 .ca-action-btn { background:none; border:1px solid #ffffff15; color:#ccc; font-family:inherit; font-size:12px; padding:5px 12px; border-radius:8px; cursor:pointer; transition:all .2s; }
-.ca-action-btn:hover { background:#ffffff08; color:#fff; }
+.ca-action-btn:hover { background:#ffffff08; color:#ffffff15; }
 .ca-action-btn.red { border-color:#ff5f5f33; color:#ff5f5f; }
 .ca-action-btn.red:hover { background:#ff5f5f11; }
 

@@ -23,7 +23,7 @@ const protect = async (req, res, next) => {
       throw new Error("JWT secret is missing from environment variables");
     }
 
-    const decoded = jwt.verify(token, tokenSecret);
+    const decoded = jwt.verify(token, tokenSecret); //signature verification and decoding the token to get the payload which contains the user id and purpose of the token
     if (decoded.purpose && decoded.purpose !== "auth") {
       res.status(401);
       throw new Error("This token cannot be used for authenticated app access");

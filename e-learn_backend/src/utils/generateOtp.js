@@ -8,6 +8,7 @@ const generateOTP = async () => {
   // Math.random() is NOT — never use it for OTPs
   const otp = crypto.randomInt(100000, 999999).toString();
   
+  
   const salt = await bcrypt.genSalt(10);//gensalt for hashing the OTP
   const hashedOTP = await bcrypt.hash(otp, salt);
 

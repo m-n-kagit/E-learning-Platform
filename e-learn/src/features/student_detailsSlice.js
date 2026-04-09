@@ -35,6 +35,9 @@ const studentDetailsSlice = createSlice({
   name: "studentDetails",
   initialState,
   reducers: {
+    getStudentDetails(state, action) {
+      state.student = normalizeStudent(action.payload);
+    },
     setStudent(state, action) {
       state.student = normalizeStudent(action.payload);
     },
@@ -56,5 +59,5 @@ const studentDetailsSlice = createSlice({
   },
 });
 
-export const { setStudent, updateStudent, clearStudent } = studentDetailsSlice.actions;
+export const { setStudent, updateStudent, clearStudent, getStudentDetails } = studentDetailsSlice.actions;
 export default studentDetailsSlice.reducer;

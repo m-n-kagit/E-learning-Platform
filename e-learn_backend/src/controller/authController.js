@@ -14,7 +14,7 @@ import BlockedToken from "../models/Blocked_tokens.models.js";
 import virus_check from "../utils/virus_total.js";
 import buildProfileInitial from "../utils/profileInitials.js";
 
-const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 15 * 60 * 1000;
+const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 60 * 60 * 1000;
 const resetPasswordCookieMaxAge = 10 * 60 * 1000; // 10 minutes for password reset token
 const tokenSecret = process.env.ACCESS_TOKEN_SECRET;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -70,7 +70,8 @@ const getCookieOptions = (maxAge = cookieMaxAge) => ({
 });
 
 const setTokenCookie = (res, userId, maxAge = cookieMaxAge, options = {}) => {
-  res.cookie("token", generateToken(userId, options), getCookieOptions(maxAge));
+  const expiresIn = options.expiresIn || `${Math.floor(cookieMaxAge / 1000)}s`;
+  res.cookie("token", generateToken(userId, { ...options, expiresIn }), getCookieOptions(maxAge));
 };
 
 
@@ -90,7 +91,10 @@ const registerUser = async (req, res, next) => {
     }
 
     const user = await User.create({ name, email, password });
-    setTokenCookie(res, user._id);
+    setTokenCookie(res, user._id, cookieMaxAge, {
+      purpose: "auth",
+      expiresIn: "24h",
+    });
 
     res.status(201).json({
       success: true,
@@ -243,7 +247,10 @@ const loginUser = async (req, res, next) => {
       res.status(401);
       throw new Error("Invalid email or password");
     }
-    setTokenCookie(res, user._id);
+    setTokenCookie(res, user._id, cookieMaxAge, {
+      purpose: "auth",
+      expiresIn: "24h",
+    });
 
     res.status(200).json({
       success: true,
@@ -431,7 +438,7 @@ const logoutUser = async (req, res, next) => {
     //Storing the token in the database if its expiry is above the 
     //logut time to prevent its reuse until it naturally expires.
     if (token) {
-      await BlockedToken.create({token, expiresAt: new Date(Date.now() + cookieMaxAge)});
+      await BlockedToken.create({ token });
     }
 
     res.clearCookie("token", {
@@ -492,7 +499,7 @@ const verifyOTP_forget_password = async (req, res, next) => {
     await record.save();
     setTokenCookie(res, user._id, resetPasswordCookieMaxAge, {
       purpose: "reset-password",
-      expiresIn: `${Math.floor(resetPasswordCookieMaxAge / 1000)}s`,
+      expiresIn: "10m",
     });
 
     res.status(200).json({

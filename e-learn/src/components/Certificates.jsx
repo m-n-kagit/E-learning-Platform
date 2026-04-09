@@ -1,4 +1,9 @@
+import {useDispatch, useSelector} from "react-redux";
+// import { getStudentDetails } from "../features/student_detailsSlice";
 export default function Certificates() {
+// const dispatch = useDispatch();
+//  const student = useSelector((state) => state.studentDetails.student);
+
   return (
     <div className="sd-page">
       <h1 className="sd-h1">My Certificates</h1>

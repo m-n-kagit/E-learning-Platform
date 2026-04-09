@@ -1,11 +1,18 @@
 
 import Email from "../utils/send_email.js";
 
-const stripSqlKeywords = (value = "") =>
-  String(value).replace(
-    /\b(select|insert|update|delete|drop|alter|truncate|modify|create|replace|where|union|join|exec|execute)\b/gi,
-    ""
-  );
+// const stripSqlKeywords = (value = "") =>
+//   String(value).replace(
+//     /\b(select|insert|update|delete|drop|alter|truncate|modify|create|replace|where|union|join|exec|execute)\b/gi,
+//     ""
+//   ); not used for MongoDB
+
+const ensureString = (value) => {
+  if (typeof value !== "string") {
+    throw new Error("Invalid input: expected string");
+  }
+  return value;
+};
 
 const escapeHtml = (value = "") =>
   String(value)
@@ -16,20 +23,20 @@ const escapeHtml = (value = "") =>
     .replace(/'/g, "&#39;");
 
 const sanitizeEmailAddress = (value = "") =>
-  stripSqlKeywords(value)
+  ensureString(value)
     .trim()
     .toLowerCase()
     .replace(/\s/g, "");
 
 const sanitizeSingleLine = (value = "") =>
-  stripSqlKeywords(value)
+  ensureString(value)
     .replace(/[<>]/g, "")//bothered about angle brackets in subject line, 
     // as they could mess with HTML formatting of the email
     .replace(/\s{2,}/g, " ")
     .trim();
 
 const sanitizeMessage = (value = "") =>
-  stripSqlKeywords(value)
+  ensureString(value)
     .replace(/\r/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

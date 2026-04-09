@@ -58,7 +58,11 @@ function getRatingsCount(ratings) {
 }
 
 export default function CourseDetail({ course: courseProp }) {
-  const { courseId } = useParams();
+  const { courseId } = useParams();//useParams returns an object of 
+  // key-value pairs of URL parameters. 
+  // In this case, we expect a parameter named courseId in the URL, 
+  // which we can use to identify which course's details to display. 
+  // If the URL is something like /courses/123, then courseId will be "123".
   const { courses, selectedCourseId } = useSelector((state) => state.activeCourses);
   const normalizedRouteCourseId = String(courseId || "").trim();
   const courseFromRoute = normalizedRouteCourseId
