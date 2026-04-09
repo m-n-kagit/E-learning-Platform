@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useNavig
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "./components/Navbar";
+import CourseDetail from "./components/CourseDetail";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Explore from "./pages/Explore";
@@ -122,10 +123,16 @@ export default function App() {
 function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const dashboardRoutes = ["/course-admin", "/global-admin", "/student-dashboard"];
-  const showNavbar = !dashboardRoutes.includes(location.pathname);
+  const backgroundLocation = location.state?.backgroundLocation;
+  const routeContextLocation = backgroundLocation || location;
+  const isDashboardRoute =
+    routeContextLocation.pathname === "/course-admin" ||
+    routeContextLocation.pathname === "/global-admin" ||
+    routeContextLocation.pathname.startsWith("/student-dashboard");
+  const showNavbar = !isDashboardRoute;
 
   async function directTo() {
+    if (location.pathname.startsWith("/course")) return;
     if(localStorage.getItem("hasSession") === "true") {
     try {
       await axios.get("/api/auth/me", {
@@ -160,11 +167,13 @@ function AppLayout() {
   return (
     <>
       {showNavbar && <Navbar />}
-      <Routes>
+      <Routes location={backgroundLocation || location}>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/explore" element={<Explore />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/course" element={<CourseDetailModal />} />
+        <Route path="/course/:courseId" element={<CourseDetailModal />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forget-password" element={<Forget_Password />} />
         <Route path="/signup" element={<Signup />} />
@@ -178,8 +187,80 @@ function AppLayout() {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={["user"]} />}>
           <Route path="/student-dashboard" element={<StudentDashboard />} />
+          <Route path="/student-dashboard/course" element={<StudentDashboard />} />
+          <Route path="/student-dashboard/course/:courseId" element={<StudentDashboard />} />
         </Route>
       </Routes>
+      {backgroundLocation && (
+        <Routes>
+          <Route path="/course" element={<CourseDetailModal />} />
+          <Route path="/course/:courseId" element={<CourseDetailModal />} />
+        </Routes>
+      )}
     </>
+  );
+}
+
+function CourseDetailModal() {
+  const navigate = useNavigate();
+
+  return (
+    <div
+      onClick={() => navigate(-1)}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(0, 0, 0, 0.45)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "min(980px, 100%)",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          position: "relative",
+        }}
+      >
+        <button
+          onClick={() => navigate(-1)}
+          aria-label="Close course detail"
+          style={{
+            position: "absolute",
+            top: "8px",
+            right: "8px",
+            zIndex: 2,
+            border: "none",
+            borderRadius: "999px",
+            width: "36px",
+            height: "36px",
+            cursor: "pointer",
+            fontSize: "20px",
+            lineHeight: 1,
+            background: "rgba(0, 0, 0, 0.6)",
+            color: "#fff",
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M6 6L18 18M18 6L6 18"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+        <CourseDetail />
+      </div>
+    </div>
   );
 }

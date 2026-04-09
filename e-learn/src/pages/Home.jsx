@@ -1,4 +1,6 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { addCourse, enrollStudent, selectCourse } from "../features/activeCoursesSlice";
 import StatsSection from "../components/StatsSection";
 import Footer from "../components/Footer";
 import aiImage from "../images/Ai_image.jpg";
@@ -8,6 +10,7 @@ import devImage from "../images/1687.jpg";
 import Data_analytics_image from "../images/DA_image.jfif";
 const courses = [
   {
+    id: 1,
     icon: devImage,
     cat: "Development",
     lvl: "Beginner",
@@ -16,6 +19,7 @@ const courses = [
     stu: "12,400",
   },
   {
+    id: 2,
     icon: aiImage,
     cat: "AI & ML",
     lvl: "Intermediate",
@@ -24,6 +28,7 @@ const courses = [
     stu: "8,900",
   },
   {
+    id: 3,
     icon: uiImage,
     cat: "Design",
     lvl: "All Levels",
@@ -32,6 +37,7 @@ const courses = [
     stu: "6,200",
   },
   {
+    id: 4,
     icon: cyberImage,
     cat: "Data Science",
     lvl: "Intermediate",
@@ -40,6 +46,7 @@ const courses = [
     stu: "9,700",
   },
   {
+    id: 5,
     icon: Data_analytics_image,
     cat: "Cloud",
     lvl: "Advanced",
@@ -48,6 +55,7 @@ const courses = [
     stu: "4,500",
   },
   {
+    id: 6,
     icon: cyberImage,
     cat: "Security",
     lvl: "Intermediate",
@@ -59,6 +67,49 @@ const courses = [
 
 export default function Home() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useDispatch();
+  const student = useSelector((state) => state.studentDetails.student);
+  const enrolledCourses = useSelector((state) => state.activeCourses.courses);
+
+  const mapHomeCourseToSchema = (course) => {
+    const normalizedLevel = String(course?.lvl || "").toLowerCase();
+    return {
+      _id: String(course.id),
+      title: course.name,
+      description: course.desc,
+      instructor: "Course Admin",
+      thumbnail: course.icon,
+      price: 0,
+      category: course.cat,
+      level: ["beginner", "intermediate", "advanced"].includes(normalizedLevel)
+        ? normalizedLevel
+        : "beginner",
+      lessons: [],
+      enrolledStudents: [],
+      ratings: [],
+      averageRating: 0,
+      isPublished: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  };
+
+  const handleEnroll = (course) => {
+    const mappedCourse = mapHomeCourseToSchema(course);
+    const studentId = student?._id || "local-student";
+    const alreadyAdded = enrolledCourses.some((item) => item._id === mappedCourse._id);
+
+    if (!alreadyAdded) {
+      dispatch(addCourse(mappedCourse));
+    }
+
+    dispatch(enrollStudent({ courseId: mappedCourse._id, studentId }));
+    dispatch(selectCourse(mappedCourse._id));
+    navigate(`/course/${mappedCourse._id}`, {
+      state: { backgroundLocation: location },
+    });
+  };
 
   return (
     <>
@@ -110,7 +161,7 @@ export default function Home() {
 
               <div className="sd-avail-foot">
                 <span className="sd-avail-stu">{c.stu} students</span>
-                <button className="sd-avail-enroll" onClick={() => navigate("/explore")}>
+                <button className="sd-avail-enroll" onClick={() => handleEnroll(c)}>
                   Enroll
                 </button>
               </div>

@@ -13,6 +13,7 @@
     "call-bind-apply-helpers": "^1.0.2",
     "call-bound": "^1.0.4",
     "cloudinary": "^2.9.0",
+    "concurrently": "^9.2.1",
     "content-disposition": "^1.0.1",
     "content-type": "^1.0.5",
     "cookie": "^0.7.2",

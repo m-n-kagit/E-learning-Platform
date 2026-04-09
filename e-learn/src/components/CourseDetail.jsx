@@ -1,5 +1,6 @@
 import "./CourseDetail.css";
 import { useSelector } from "react-redux";
+import { useParams } from "react-router-dom";
 
 const sampleCourse = {
   title: "Full Stack Web Development",
@@ -57,9 +58,14 @@ function getRatingsCount(ratings) {
 }
 
 export default function CourseDetail({ course: courseProp }) {
+  const { courseId } = useParams();
   const { courses, selectedCourseId } = useSelector((state) => state.activeCourses);
+  const normalizedRouteCourseId = String(courseId || "").trim();
+  const courseFromRoute = normalizedRouteCourseId
+    ? courses.find((item) => String(item._id) === normalizedRouteCourseId) || null
+    : null;
   const courseFromStore = courses.find((item) => item._id === selectedCourseId) || null;
-  const course = courseProp || courseFromStore || sampleCourse;
+  const course = courseProp || courseFromRoute || courseFromStore || sampleCourse;
 
   const title = course?.title || "Untitled Course";
   const description = course?.description || "No description available.";

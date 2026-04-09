@@ -14,12 +14,24 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendEmail = ( to, subject, html ) => {
+const sendEmail = (payloadOrTo, subjectArg, htmlArg) => {
+  const payload = typeof payloadOrTo === "object" && payloadOrTo !== null
+    ? payloadOrTo
+    : { to: payloadOrTo, subject: subjectArg, html: htmlArg };
+
+  const to = String(payload.to || "").trim();
+  const subject = String(payload.subject || "").trim();
+  const html = String(payload.html || "").trim();
+
+  if (!to) {
+    throw new Error("Email recipient is required");
+  }
+
   return transporter.sendMail({
     from: process.env.SMTP_USER,
     to,
     subject,
-    html
+    html,
   });
 }
 

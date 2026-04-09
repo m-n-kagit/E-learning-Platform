@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import  CourseCard from "../components/CourseCard"; 
 import  Certificates  from "../components/Certificates";
 import  MyCourses  from "../components/MyCourses";
 import CoursesAvailable from "../components/CoursesAvailable";
+import CourseDetail from "../components/CourseDetail";
 import axios from "axios";
 import { useDispatch,useSelector } from "react-redux";
 import { setStudent, updateStudent } from "../features/student_detailsSlice";
@@ -59,6 +60,7 @@ const deriveInitials = (name = "") => {
 };
 export default function StudentDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   // const [student , setStudent_detail] = useState(null); //no requirement of 
   // local state as we are using redux to manage the student data
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -107,6 +109,12 @@ export default function StudentDashboard() {
     getStudentData();
   }, []);
 
+  useEffect(() => {
+    if (location.pathname.startsWith("/student-dashboard/course")) {
+      setActiveNav("courses-available");
+    }
+  }, [location.pathname]);
+
   const go = (id) => { setActiveNav(id); setView(null); setSidebarOpen(false); };
   const unread = STUDENT.notifications.filter((n) => !n.read).length;
 
@@ -123,6 +131,7 @@ export default function StudentDashboard() {
   };
 
   const renderPage = () => {
+    if (location.pathname.startsWith("/student-dashboard/course")) return <CourseDetail />;
     if (view === "profile") return <ViewProfile onBack={() => setView(null)} />;
     if (view === "edit-profile") return <EditProfile onBack={() => setView(null)} />;
     switch (activeNav) {
@@ -212,8 +221,8 @@ export default function StudentDashboard() {
                 <div className="sd-dd-user">
                   <span className="sd-ava md">{displayInitials}</span>
                   <div>
-                    <div className="sd-dd-name">{STUDENT.name}</div>
-                    <div className="sd-dd-email">{STUDENT.email}</div>
+                    <div className="sd-dd-name">{user.name}</div>
+                    <div className="sd-dd-email">{user.email}</div>
                   </div>
                 </div>
                 <div className="sd-dd-divider" />
@@ -777,4 +786,3 @@ const STYLES = `
 .sd-tag.green { background:rgba(112,171,93,0.16); color:var(--accent); }
 .sd-tag.red { background:rgba(186,58,58,0.1); color:#ba3a3a; }
 `;
-

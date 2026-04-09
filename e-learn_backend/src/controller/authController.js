@@ -108,10 +108,10 @@ const registerUser = async (req, res, next) => {
 };
 
 const registerTempUser = async (req, res, next) => { //for course admin
+  const uploadedFilePath = req.file?.path;
   try {
     const { name, email, password, role, adminPhoneNumber } = req.body;
     const normalizedRole = role === "course_admin" ? "course_admin" : "user";
-    const uploadedFilePath = req.file?.path;
 
     if (!name || !email || !password) {
       res.status(400);
@@ -584,7 +584,7 @@ const forget_pass = async(req, res,next) => {
         throw new Error("User with this email does not exist");
       }
       const { otp, hashedOTP } = await generateOTP();
-      const emailResult = await sendEmail({
+      const emailResult = await Email.sendEmail({
         to: normalizedEmail,
         subject: "Your Password Reset OTP",
         html: `<h2>Your OTP for password reset is: <strong>${otp}</strong></h2><p>Valid for 5 minutes only.</p>`,

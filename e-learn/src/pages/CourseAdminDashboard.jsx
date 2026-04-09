@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useDispatch, useSelector } from "react-redux";
+import { setCourseAdmin } from "../features/course_admin_detailsSlice";
 
 /* ─────────────────────────────────────────────
    MOCK DATA
@@ -49,8 +51,7 @@ const ADMIN = {
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "◻" },
   { id: "courses", label: "My Courses", icon: "▤" },
-  { id: "upload", label: "Upload Content", icon: "↑" },
-  { id: "quiz", label: "Quiz Manager", icon: "◎" },
+  { id: "course-upload", label: "Course Upload", icon: "↑" },
   { id: "performance", label: "Student Performance", icon: "◈" },
   { id: "analysis", label: "Course Analysis", icon: "⊕" },
   { id: "feedback", label: "Feedback", icon: "✦" },
@@ -60,8 +61,17 @@ const NAV_ITEMS = [
 /* ─────────────────────────────────────────────
    ROOT
 ───────────────────────────────────────────── */
+const deriveInitials = (name = "") => {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "";
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return parts[0][0].toUpperCase();
+};
+
 export default function CourseAdminDashboard() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const cAdmin = useSelector((state) => state.courseAdminDetails.c_admin);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("dashboard");
   const [profileOpen, setProfileOpen] = useState(false);
@@ -69,6 +79,25 @@ export default function CourseAdminDashboard() {
   const [view, setView] = useState(null);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
+  const currentAdmin = {
+    ...ADMIN,
+    ...cAdmin,
+    name: cAdmin?.name || ADMIN.name,
+    email: cAdmin?.email || ADMIN.email,
+    initials: cAdmin?.initial || cAdmin?.initials || deriveInitials(cAdmin?.name) || ADMIN.initials,
+  };
+
+  const getCourseAdminData = async () => {
+    try {
+      const response = await axios.get("/api/auth/me", { withCredentials: true });
+      const adminData = response?.data?.data;
+      if (adminData) {
+        dispatch(setCourseAdmin(adminData));
+      }
+    } catch (error) {
+      console.error("Failed to fetch course admin data:", error);
+    }
+  };
 
   useEffect(() => {
     const el = document.createElement("style");
@@ -87,6 +116,10 @@ export default function CourseAdminDashboard() {
     return () => document.removeEventListener("mousedown", fn);
   }, []);
 
+  useEffect(() => {
+    getCourseAdminData();
+  }, []);
+
   const go = (id) => { setActiveNav(id); setView(null); setSidebarOpen(false); };
   const unread = ADMIN.notifications.filter((n) => !n.read).length;
 
@@ -103,20 +136,20 @@ export default function CourseAdminDashboard() {
   };
 
   const renderPage = () => {
-    if (view === "profile") return <ViewProfile onBack={() => setView(null)} />;
-    if (view === "edit-profile") return <EditProfile onBack={() => setView(null)} />;
+    if (view === "profile") return <ViewProfile onBack={() => setView(null)} admin={currentAdmin} />;
+    if (view === "edit-profile") return <EditProfile onBack={() => setView(null)} admin={currentAdmin} />;
     if (view === "income") return <MonthlyIncome onBack={() => setView(null)} />;
     if (view === "reviews") return <TeachingReviews onBack={() => setView(null)} />;
     switch (activeNav) {
-      case "dashboard":   return <DashboardHome setView={setView} go={go} />;
+      case "dashboard":   return <DashboardHome setView={setView} go={go} admin={currentAdmin} />;
       case "courses":     return <MyCourses />;
-      case "upload":      return <UploadContent />;
-      case "quiz":        return <QuizManager />;
+      case "course-upload":      return <CourseUpload />;
+      
       case "performance": return <StudentPerformance />;
       case "analysis":    return <CourseAnalysis />;
       case "feedback":    return <Feedback />;
       case "transactions":return <Transactions />;
-      default:            return <DashboardHome setView={setView} go={go} />;
+      default:            return <DashboardHome setView={setView} go={go} admin={currentAdmin} />;
     }
   };
 
@@ -141,9 +174,9 @@ export default function CourseAdminDashboard() {
         </nav>
         <div className="ca-sb-footer">
           <div className="ca-sb-user">
-            <span className="ca-ava sm">{ADMIN.initials}</span>
+            <span className="ca-ava sm">{currentAdmin.initials}</span>
             <div>
-              <div className="ca-sb-uname">{ADMIN.name}</div>
+              <div className="ca-sb-uname">{currentAdmin.name}</div>
               <div className="ca-sb-uemail">Course Instructor</div>
             </div>
           </div>
@@ -182,15 +215,15 @@ export default function CourseAdminDashboard() {
           {/* Profile */}
           <div ref={profileRef} className="ca-profile-wrap">
             <button className="ca-ava-btn" onClick={() => setProfileOpen((v) => !v)}>
-              <span className="ca-ava">{ADMIN.initials}</span>
+              <span className="ca-ava">{currentAdmin.initials}</span>
             </button>
             {profileOpen && (
               <div className="ca-dropdown profile">
                 <div className="ca-dd-user">
-                  <span className="ca-ava md">{ADMIN.initials}</span>
+                  <span className="ca-ava md">{currentAdmin.initials}</span>
                   <div>
-                    <div className="ca-dd-name">{ADMIN.name}</div>
-                    <div className="ca-dd-email">{ADMIN.email}</div>
+                    <div className="ca-dd-name">{currentAdmin.name}</div>
+                    <div className="ca-dd-email">{currentAdmin.email}</div>
                   </div>
                 </div>
                 <div className="ca-dd-divider" />
@@ -220,7 +253,7 @@ export default function CourseAdminDashboard() {
 /* ─────────────────────────────────────────────
    PAGE COMPONENTS
 ───────────────────────────────────────────── */
-function DashboardHome({ setView, go }) {
+function DashboardHome({ setView, go, admin }) {
   const totalStudents = ADMIN.courses.reduce((a, c) => a + c.students, 0);
   const totalRevenue = ADMIN.courses.reduce((a, c) => a + c.revenue, 0);
   const avgRating = (ADMIN.courses.reduce((a, c) => a + c.rating, 0) / ADMIN.courses.length).toFixed(1);
@@ -230,9 +263,9 @@ function DashboardHome({ setView, go }) {
       <div className="ca-page-head">
         <div>
           <h1>Instructor Dashboard <span className="acc">✦</span></h1>
-          <p>Welcome back, {ADMIN.name.split(" ")[1]}. Your courses are performing well.</p>
+          <p>Welcome back, {(admin?.name || ADMIN.name).split(" ")[1]}. Your courses are performing well.</p>
         </div>
-        <button className="ca-cta-btn" onClick={() => go("upload")}>+ Upload Content</button>
+        <button className="ca-cta-btn" onClick={() => go("course-upload")}>+ Upload Course</button>
       </div>
 
       <div className="ca-stat-row">
@@ -287,15 +320,21 @@ function MyCourses() {
   );
 }
 
-function UploadContent() {
+function CourseUpload() {
   const [tab, setTab] = useState("video");
+  const quizzes = [
+    { id: 1, title: "Week 1 - HTML & CSS Basics", course: "Full-Stack Web Dev", questions: 15, submissions: 420, avgScore: 78 },
+    { id: 2, title: "Module 3 - REST APIs", course: "Node.js Masterclass", questions: 12, submissions: 300, avgScore: 72 },
+    { id: 3, title: "React Hooks Deep Dive", course: "React Advanced Patterns", questions: 20, submissions: 180, avgScore: 85 },
+  ];
+
   return (
     <div className="ca-page">
-      <h1 className="ca-h1">Upload Content</h1>
+      <h1 className="ca-h1">Course Upload</h1>
       <div className="ca-tabs">
         {["video", "article", "document"].map((t) => (
           <button key={t} className={`ca-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
-            {t === "video" ? "📹 Video" : t === "article" ? "📝 Article" : "📄 Document"}
+            {t === "video" ? "Video" : t === "article" ? "Article" : "Document"}
           </button>
         ))}
       </div>
@@ -315,26 +354,17 @@ function UploadContent() {
           <textarea rows={3} placeholder="Brief description of this content..." />
         </div>
         <div className="ca-upload-zone">
-          <span className="ca-upload-ico">{tab === "video" ? "📹" : tab === "article" ? "📝" : "📄"}</span>
-          <p>Drag & drop or <span className="acc">browse files</span></p>
-          <span className="ca-upload-hint">{tab === "video" ? "MP4, MOV – Max 2GB" : "PDF, DOCX – Max 50MB"}</span>
+          <span className="ca-upload-ico">Upload</span>
+          <p>Drag and drop or <span className="acc">browse files</span></p>
+          <span className="ca-upload-hint">{tab === "video" ? "MP4, MOV - Max 2GB" : "PDF, DOCX - Max 50MB"}</span>
         </div>
-        <button className="ca-cta-btn" style={{ marginTop: 16 }}>Upload {tab.charAt(0).toUpperCase() + tab.slice(1)}</button>
+        <button className="ca-cta-btn" style={{ marginTop: 16 }}>
+          Upload {tab.charAt(0).toUpperCase() + tab.slice(1)}
+        </button>
       </div>
-    </div>
-  );
-}
 
-function QuizManager() {
-  const quizzes = [
-    { id: 1, title: "Week 1 – HTML & CSS Basics", course: "Full-Stack Web Dev", questions: 15, submissions: 420, avgScore: 78 },
-    { id: 2, title: "Module 3 – REST APIs", course: "Node.js Masterclass", questions: 12, submissions: 300, avgScore: 72 },
-    { id: 3, title: "React Hooks Deep Dive", course: "React Advanced Patterns", questions: 20, submissions: 180, avgScore: 85 },
-  ];
-  return (
-    <div className="ca-page">
-      <div className="ca-page-head">
-        <h1 className="ca-h1" style={{ margin: 0 }}>Quiz Manager</h1>
+      <div className="ca-page-head" style={{ marginTop: 28 }}>
+        <h1 className="ca-h1" style={{ margin: 0 }}>Quiz Builder</h1>
         <button className="ca-cta-btn">+ New Quiz</button>
       </div>
       <div className="ca-table-wrap">
@@ -364,7 +394,6 @@ function QuizManager() {
     </div>
   );
 }
-
 function StudentPerformance() {
   return (
     <div className="ca-page">
@@ -493,25 +522,25 @@ function Transactions() {
 }
 
 /* ─── Profile Views ─── */
-function ViewProfile({ onBack }) {
+function ViewProfile({ onBack, admin }) {
   return (
     <div className="ca-page">
       <button className="ca-back" onClick={onBack}>← Back to Dashboard</button>
       <div className="ca-vp-banner">
         <div className="ca-vp-grad" />
         <div className="ca-vp-ava-wrap">
-          <div className="ca-vp-ava">{ADMIN.initials}</div>
+          <div className="ca-vp-ava">{admin?.initials || ADMIN.initials}</div>
           <span className="ca-vp-role-tag">Course Instructor</span>
         </div>
       </div>
       <div className="ca-vp-body">
         <div>
-          <h1 className="ca-vp-name">{ADMIN.name}</h1>
+          <h1 className="ca-vp-name">{admin?.name || ADMIN.name}</h1>
           <p className="ca-vp-bio">{ADMIN.bio}</p>
           <div className="ca-vp-meta">
             <span>📍 {ADMIN.location}</span>
             <span>📅 Joined {ADMIN.joinDate}</span>
-            <span>✉ {ADMIN.email}</span>
+            <span>✉ {admin?.email || ADMIN.email}</span>
           </div>
         </div>
       </div>
@@ -616,21 +645,21 @@ function TeachingReviews({ onBack }) {
   );
 }
 
-function EditProfile({ onBack }) {
+function EditProfile({ onBack, admin }) {
   return (
     <div className="ca-page">
       <button className="ca-back" onClick={onBack}>← Back</button>
       <h1 className="ca-h1">Edit Profile</h1>
       <div className="ca-edit-wrap">
         <div className="ca-edit-ava-col">
-          <div className="ca-vp-ava" style={{ margin: "0 auto" }}>{ADMIN.initials}</div>
+          <div className="ca-vp-ava" style={{ margin: "0 auto" }}>{admin?.initials || ADMIN.initials}</div>
           <button className="ca-upload-photo-btn">Change Photo</button>
         </div>
         <div className="ca-edit-form">
           <div className="ca-form-grid">
             {[
-              { label: "Full Name", value: ADMIN.name },
-              { label: "Email", value: ADMIN.email },
+              { label: "Full Name", value: admin?.name || ADMIN.name },
+              { label: "Email", value: admin?.email || ADMIN.email },
               { label: "Phone", value: ADMIN.phone },
               { label: "Location", value: ADMIN.location },
             ].map((f) => (
@@ -907,3 +936,4 @@ const STYLES = `
 .ca-vp-banner { background:linear-gradient(155deg, #b7d28d 0%, #dce9c6 100%); }
 .ca-vp-grad { background:linear-gradient(135deg, rgba(31,92,16,0.1), rgba(126,181,107,0.18)); }
 `;
+

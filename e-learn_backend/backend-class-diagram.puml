@@ -1,0 +1,333 @@
+﻿@startuml
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+package "API / Entry" {
+  class App {
+    +configureMiddleware()
+    +mountRoutes()
+  }
+
+  class Server {
+    +bootstrap()
+    +listen()
+  }
+
+  class DB {
+    +connectDB()
+  }
+
+  class AuthRoutes {
+    +register-temp()
+    +send-otp()
+    +verify-otp()
+    +login()
+    +logout()
+    +forget-password()
+    +verify-otp-forget-password()
+    +enter-new-password()
+    +me()
+    +update-profile()
+  }
+
+  class EmailRoutes {
+    +contact()
+  }
+
+  class CourseHandlingRoutes {
+    +upload-content()
+    +get-all-courses()
+    +update-course()
+    +add-lesson()
+    +remove-lesson()
+  }
+}
+
+package "Controllers" {
+  class AuthController {
+    +registerUser()
+    +registerTempUser()
+    +loginUser()
+    +getMe()
+    +sendOTP()
+    +verifyOTP()
+    +logoutUser()
+    +forget_pass()
+    +verifyOTP_forget_password()
+    +Enter_new_password()
+  }
+
+  class ProfileController {
+    +updateDetails()
+  }
+
+  class EmailController {
+    +receiveEmail()
+  }
+
+  class CadminCourseController {
+    +uploadContent()
+    +getAllCourses()
+    +updateCourse()
+    +addLesson()
+    +removeLesson()
+  }
+
+  class StudentCourseController {
+    +getAllCourses()
+    +getCourseById()
+    +enrollCourse()
+    +getMyCourses()
+  }
+}
+
+package "Middleware" {
+  class AuthMiddleware {
+    +protect()
+    +restrictTo(...roles)
+  }
+
+  class ErrorMiddleware {
+    +errorHandler(err, req, res, next)
+  }
+
+  class MulterMiddleware {
+    +upload.single("verificationDocument")
+  }
+}
+
+package "Utilities" {
+  class GenerateToken {
+    +generateToken(userId, options)
+  }
+
+  class GenerateOtp {
+    +generateOTP()
+  }
+
+  class SendEmail {
+    +sendEmail(payload)
+    +receiveEmail(to, from, html)
+  }
+
+  class RateLimiter {
+    +auth_limiter
+    +login_limiter
+  }
+
+  class CloudinaryUtil {
+    +uploadCloudinary(filePath)
+  }
+
+  class VirusTotalUtil {
+    +uploadFile(path)
+    +virus_check(analysisId)
+  }
+
+  class PasswordValidator {
+    +pass_word_verify(text)
+  }
+
+  class ProfileInitials {
+    +buildProfileInitial(name)
+  }
+}
+
+package "Models (Mongoose)" {
+  class User {
+    +name: String
+    +email: String
+    +password: String
+    +role: String
+    +adminPhoneNumber: String
+    +adminDocumentUrl: String
+    +adminDocumentPublicId: String
+    +isVerified: Boolean
+    +initial: String
+    +matchPassword(enteredPassword)
+  }
+
+  class TempUser {
+    +name: String
+    +email: String
+    +password: String
+    +role: String
+    +adminPhoneNumber: String
+    +adminDocumentUrl: String
+    +adminDocumentPublicId: String
+    +expiresAt: Date
+    +matchPassword(enteredPassword)
+  }
+
+  class OTP {
+    +email: String
+    +hashedOTP: String
+    +isVerify: Boolean
+    +createdAt: Date
+  }
+
+  class BlockedToken {
+    +token: String
+    +createdAt: Date
+  }
+
+  class Instructor {
+    +user: ObjectId
+    +bio: String
+    +profilePicture: String
+    +location: String
+    +courses: ObjectId[]
+  }
+
+  class Student {
+    +user: ObjectId
+    +initial: String
+    +certificates: String[]
+    +enrolledCourses: ObjectId[]
+    +globalRanking: Number
+    +courseProgress: [{course, progress}]
+    +notification: ObjectId[]
+    +bio: String
+    +location: String
+    +joinedDate: Date
+    +profilePicture: String
+  }
+
+  class Course {
+    +title: String
+    +description: String
+    +instructor: ObjectId
+    +thumbnail: String
+    +price: Number
+    +category: String
+    +level: String
+    +lessons: ObjectId[]
+    +enrolledStudents: ObjectId[]
+    +ratings: [{user, rating, review}]
+    +averageRating: Number
+    +isPublished: Boolean
+  }
+
+  class Lesson {
+    +title: String
+    +description: String
+    +course: ObjectId
+    +videoUrl: String
+    +duration: Number
+    +order: Number
+    +isPreview: Boolean
+    +resources: [{title, fileUrl}]
+  }
+
+  class Enrollment {
+    +user: ObjectId
+    +course: ObjectId
+    +enrolledAt: Date
+    +paymentStatus: String
+  }
+
+  class Payment {
+    +user: ObjectId
+    +course: ObjectId
+    +amount: Number
+    +paymentMethod: String
+    +paymentStatus: String
+    +transactionId: String
+  }
+
+  class Review {
+    +user: ObjectId
+    +course: ObjectId
+    +rating: Number
+    +comment: String
+  }
+
+  class QuizAttempt {
+    +user: ObjectId
+    +lesson: ObjectId
+    +course: ObjectId
+    +score: Number
+    +totalMarks: Number
+    +percentage: Number
+    +passed: Boolean
+    +attemptNumber: Number
+  }
+
+  class Progress {
+    +user: ObjectId
+    +course: ObjectId
+    +lessonProgress: [{lesson, bestScore, isCompleted}]
+    +overallProgress: Number
+  }
+
+  class Notification {
+    +user: ObjectId
+    +message: String
+    +isRead: Boolean
+  }
+}
+
+'owns / starts' relations
+Server --> DB
+Server --> App
+App --> AuthRoutes
+App --> EmailRoutes
+App --> ErrorMiddleware
+App --> RateLimiter
+AuthRoutes --> AuthController
+AuthRoutes --> ProfileController
+AuthRoutes --> AuthMiddleware
+AuthRoutes --> MulterMiddleware
+AuthRoutes --> RateLimiter
+EmailRoutes --> EmailController
+CourseHandlingRoutes --> CadminCourseController
+CourseHandlingRoutes --> AuthMiddleware
+
+controller dependencies
+AuthController --> User
+AuthController --> TempUser
+AuthController --> OTP
+AuthController --> BlockedToken
+AuthController --> GenerateOtp
+AuthController --> GenerateToken
+AuthController --> SendEmail
+AuthController --> PasswordValidator
+AuthController --> CloudinaryUtil
+AuthController --> VirusTotalUtil
+AuthController --> ProfileInitials
+ProfileController --> User
+EmailController --> SendEmail
+CadminCourseController --> Course
+CadminCourseController --> Lesson
+CadminCourseController --> Instructor
+StudentCourseController --> Course
+StudentCourseController --> Student
+AuthMiddleware --> User
+
+model relationships
+Instructor "1" --> "1" User : user
+Instructor "1" --> "0..*" Course : courses
+Student "1" --> "1" User : user
+Student "1" --> "0..*" Course : enrolledCourses
+Student "1" --> "0..*" Notification : notification
+Student "1" --> "0..*" Progress : courseProgress.progress
+Course "1" --> "1" User : instructor
+Course "1" --> "0..*" Lesson : lessons
+Course "1" --> "0..*" User : enrolledStudents
+Course "1" --> "0..*" User : ratings.user
+Lesson "0..*" --> "1" Course : course
+Enrollment "0..*" --> "1" User : user
+Enrollment "0..*" --> "1" Course : course
+Payment "0..*" --> "1" User : user
+Payment "0..*" --> "1" Course : course
+Review "0..*" --> "1" User : user
+Review "0..*" --> "1" Course : course
+QuizAttempt "0..*" --> "1" User : user
+QuizAttempt "0..*" --> "1" Lesson : lesson
+QuizAttempt "0..*" --> "1" Course : course
+Progress "0..*" --> "1" User : user
+Progress "0..*" --> "1" Course : course
+Progress "1" --> "0..*" Lesson : lessonProgress.lesson
+Notification "0..*" --> "1" User : user
+@enduml

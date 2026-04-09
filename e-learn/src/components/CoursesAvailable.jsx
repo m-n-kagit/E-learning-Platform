@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLocation, useNavigate } from "react-router-dom";
 import { addCourse, enrollStudent, selectCourse } from "../features/activeCoursesSlice";
-import CourseDetail from "./CourseDetail";
 import aiImage from "../images/Ai_image.jpg";
 import uiImage from "../images/UI_image.jpg";
 import cyberImage from "../images/Cyber_image.jpg";
@@ -67,6 +67,8 @@ const HOME_COURSES = [
 
 export default function CoursesAvailable() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const student = useSelector((state) => state.studentDetails.student);
   const { courses: enrolledCourses, selectedCourseId } = useSelector((state) => state.activeCourses);
   const [queryDraft, setQueryDraft] = useState("");
@@ -110,6 +112,9 @@ export default function CoursesAvailable() {
 
     dispatch(enrollStudent({ courseId: mappedCourse._id, studentId }));
     dispatch(selectCourse(mappedCourse._id));
+    navigate(`/course/${mappedCourse._id}`, {
+      state: { backgroundLocation: location },
+    });
   };
 
   const categories = useMemo(
@@ -221,11 +226,6 @@ export default function CoursesAvailable() {
         </div>
       </div>
 
-      {selectedCourseId && (
-        <div style={{ marginTop: "24px" }}>
-          <CourseDetail />
-        </div>
-      )}
     </div>
   );
 }

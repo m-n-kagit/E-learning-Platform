@@ -49,6 +49,10 @@ const studentSchema = new mongoose.Schema({
         type: String,
         trim: true, 
 }, 
+joinedDate:{
+    type: Date,
+    default: Date.now
+},
     profilePicture: {
         type: String, // url of the profile picture
         trim: true,     }

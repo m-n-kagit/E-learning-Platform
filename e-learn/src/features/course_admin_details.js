@@ -1,9 +1,12 @@
-import { createSlice, nanoid } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 
 const emptyC_Admin = {
   _id: "",
     name: "",
     email: "",
+    role: "course_admin",
+    initial: "",
+    initials: "",
     coursesManaged: [],
     profilePicture: "",
     bio: "",
@@ -15,6 +18,8 @@ const emptyC_Admin = {
 const initialState= {
     c_admin : emptyC_Admin 
 }
+
+const isEqualValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 const courseAdminDetailsSlice = createSlice({
     name: "courseAdminDetails",
