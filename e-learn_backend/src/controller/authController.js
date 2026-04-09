@@ -70,7 +70,7 @@ const getCookieOptions = (maxAge = cookieMaxAge) => ({
 });
 
 const setTokenCookie = (res, userId, maxAge = cookieMaxAge, options = {}) => {
-  const expiresIn = options.expiresIn || `${Math.floor(cookieMaxAge / 1000)}s`;
+  const expiresIn = options.expiresIn ;
   res.cookie("token", generateToken(userId, { ...options, expiresIn }), getCookieOptions(maxAge));
 };
 
@@ -249,7 +249,7 @@ const loginUser = async (req, res, next) => {
     }
     setTokenCookie(res, user._id, cookieMaxAge, {
       purpose: "auth",
-      expiresIn: "24h",
+      expiresIn: "1d",
     });
 
     res.status(200).json({
@@ -263,6 +263,7 @@ const loginUser = async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.log("Error in loginUser:", error);
     next(error);
   }
 };

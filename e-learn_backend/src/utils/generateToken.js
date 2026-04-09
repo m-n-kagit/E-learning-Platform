@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 
 const tokenSecret = process.env.ACCESS_TOKEN_SECRET;
-const tokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || "1h";
+const tokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || 60*60*1000;
 
 /**
  * Generates a signed JWT token.
