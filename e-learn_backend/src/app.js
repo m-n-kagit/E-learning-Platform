@@ -6,11 +6,12 @@ import authRoutes from "./routes/authRoutes.js";
 import emailRoutes from "./routes/EmailRoutes.js";
 import errorHandler from "./middlewares/errorMiddleware.js";
 import rateLimiter from "./utils/rate-limiter.js";
-
+import mongoSanitize from "express-mongo-sanitize"; //for sanitizing the data to prevent MongoDB injection attacks
 dotenv.config();
 //the config file is loaded before the app is created so that the environment variables are available when the app is initialized. 
 
 const app = express();
+app.use(mongoSanitize());
 
 app.use(cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:5173",

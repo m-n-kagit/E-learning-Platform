@@ -63,8 +63,9 @@ export default function Login() {
       navigate(getDashboardRoute(userRole));
     } catch (error) {
       console.error("Error fetching data:", error);
+      console.error("Error response:", error.response?.data?.message);
       setLoginError(
-        error.response?.data?.message || "Login failed. Please try again."
+          "Login failed. Please try again."
       );
     }
   };

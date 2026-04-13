@@ -1,5 +1,7 @@
 
 import Email from "../utils/send_email.js";
+import sanitizeHtml from "sanitize-html";
+
 
 // const stripSqlKeywords = (value = "") =>
 //   String(value).replace(
@@ -22,24 +24,41 @@ const escapeHtml = (value = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const sanitizeEmailAddress = (value = "") =>
-  ensureString(value)
+const sanitizeEmailAddress = (value = "") =>{
+  const str= ensureString(value)
     .trim()
     .toLowerCase()
     .replace(/\s/g, "");
+ 
 
-const sanitizeSingleLine = (value = "") =>
-  ensureString(value)
-    .replace(/[<>]/g, "")//bothered about angle brackets in subject line, 
-    // as they could mess with HTML formatting of the email
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  // Step 2: Clean HTML (prevent XSS)
+  const cleanHtml = sanitizeHtml(str, {
+    allowedTags: [], // or define allowed ones
+    allowedAttributes: {}
+  });
 
-const sanitizeMessage = (value = "") =>
-  ensureString(value)
-    .replace(/\r/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return cleanHtml;
+  
+}
+
+
+const sanitizeMessage = (value = "") => {
+  const str = ensureString(value);
+
+  // Step 1: Remove MongoDB injection payloads
+
+
+  // Step 2: Clean HTML (prevent XSS)
+  const cleanHtml = sanitizeHtml(str, {
+    allowedTags: [], // or define allowed ones
+    allowedAttributes: {}
+  });
+
+  return cleanHtml;
+};
+
+
+    
 
 const receiveEmail = async (req, res) => {
   try {
@@ -47,9 +66,14 @@ const receiveEmail = async (req, res) => {
 
     const sanitizedTo = sanitizeEmailAddress(to);
     const sanitizedFrom = sanitizeEmailAddress(from);
-    const sanitizedSubject = sanitizeSingleLine(subject);
+    const sanitizedSubject = sanitizeMessage(subject);
     const sanitizedMessage = sanitizeMessage(message);
-
+    console.log("Sanitized Inputs:", {
+      to: sanitizedTo,
+      from: sanitizedFrom,
+      subject: sanitizedSubject,
+      message: sanitizedMessage
+    });
     await Email.receiveEmail(
       sanitizedTo,
       sanitizedFrom,

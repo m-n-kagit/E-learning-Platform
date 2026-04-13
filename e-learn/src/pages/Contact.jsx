@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import Footer from "../components/Footer";
+import sanitizeHtml from "sanitize-html";
 
 const contactItems = [
   { i: "📧", l: "Email",  v: "mohithyper007@gmail.com"   },
@@ -12,6 +13,7 @@ const contactItems = [
 export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
   const [done, setDone] = useState(false);
+  const [showError,setError] = useState(false);
   const sendEmail = async () => {
     try {
       await axios.post("/api/emails/contact", {
@@ -26,54 +28,37 @@ export default function Contact() {
     }
   };
 
-  const stripSqlKeywords = (value) =>
-    value.replace(
-      /\b(select|insert|update|delete|drop|alter|truncate|modify|create|replace|where|union|join|exec|execute)\b/gi,
-      ""
-    );
-
-  const sanitizeName = (value) =>
-    stripSqlKeywords(value)
-      .replace(/[^a-zA-Z\s'-]/g, "") //not a chacter, space, apostrophe, or hyphen
-      .replace(/\s{2,}/g, " ")
-      .replace(/^\s+/, "");
-
-  const sanitizeEmail = (value) =>
-    stripSqlKeywords(value)
-      .trim()
-      .toLowerCase()
-      .replace(/\s/g, "");
-
-  const sanitizeSingleLine = (value) =>
-    stripSqlKeywords(value)
-      .replace(/[<>]/g, "")
-      .replace(/\s{2,}/g, " ")
-      .replace(/^\s+/, "");
-
-  const sanitizeMessage = (value) =>
-    stripSqlKeywords(value)
-      .replace(/[<>]/g, "")
-      .replace(/\r/g, "")
-      .replace(/\n{3,}/g, "\n\n");
 
   const handle = (e) => {
     const { name, value } = e.target;
     let sanitizedValue = value;
 
-    if (name === "name") sanitizedValue = sanitizeName(value);
-    if (name === "email") sanitizedValue = sanitizeEmail(value);
-    if (name === "subject") sanitizedValue = sanitizeSingleLine(value);
-    if (name === "message") sanitizedValue = sanitizeMessage(value);
+    if (name === "name") {sanitizedValue = sanitizeHtml(value,{allowedTags: [], allowedAttributes: {}}) 
+    if(sanitizedValue!=value){ setError(true)} else{setError(false)};}
+    if (name === "email") {sanitizedValue = sanitizeHtml(value,{allowedTags: [], allowedAttributes: {}});
+    if(sanitizedValue!=value) {setError(true)} else{setError(false)};
+  }
+    if (name === "subject") {sanitizedValue = sanitizeHtml(value,{allowedTags: [], allowedAttributes: {}});
+    if(sanitizedValue!=value) {setError(true)} else{setError(false)};
+  }
+    if (name === "message") {sanitizedValue = sanitizeHtml(value,{allowedTags: [], allowedAttributes: {}});
+    if(sanitizedValue!=value) {setError(true)} else{setError(false)};
+  }
 
-    setForm({ ...form, [name]: sanitizedValue });
+    setForm({ ...form, [name]: value});
   };
+
+  useEffect(() => {
+    
+    
+  }, [showError]);
 
   const submit = () => {
     const cleanedForm = {
-      name: sanitizeName(form.name).trim(),
-      email: sanitizeEmail(form.email),
-      subject: sanitizeSingleLine(form.subject).trim(),
-      message: sanitizeMessage(form.message).trim(),
+      name: sanitizeHtml(form.name).trim(),
+      email: sanitizeHtml(form.email),
+      subject: sanitizeHtml(form.subject).trim(),
+      message: sanitizeHtml(form.message).trim(),
     };
 
     setForm(cleanedForm);
@@ -146,6 +131,9 @@ export default function Contact() {
               <button className="btn-primary" style={{ width: "100%" }} onClick={submit}>
                 Send Message
               </button>
+              <div style={{ display: showError? "block" : "none", color: "red", marginTop: "10px" }}>
+                Tags or any HTML elements are not allowed in the form fields.
+              </div>
             </>
           )}
         </div>
