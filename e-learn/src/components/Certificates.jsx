@@ -1,14 +1,14 @@
 import {useDispatch, useSelector} from "react-redux";
-// import { getStudentDetails } from "../features/student_detailsSlice";
+import { getStudentDetails } from "../features/student_detailsSlice";
 export default function Certificates() {
-// const dispatch = useDispatch();
-//  const student = useSelector((state) => state.studentDetails.student);
+const dispatch = useDispatch();
+ const STUDENT = useSelector((state) => state.studentDetails.student);
 
   return (
     <div className="sd-page">
       <h1 className="sd-h1">My Certificates</h1>
       <div className="sd-cert-grid">
-        {STUDENT.courses.filter((c) => c.progress >= 90).map((c) => (
+        {STUDENT?.courses?.filter((c) => c.progress >= 90).map((c) => (
           <div className="sd-cert-card" key={c.id}>
             <div className="sd-cert-banner" style={{ background: `linear-gradient(135deg, ${c.color}55, ${c.color}22)` }}>
               <span style={{ fontSize: 40 }}>🎓</span>
@@ -20,7 +20,7 @@ export default function Certificates() {
             </div>
           </div>
         ))}
-        {STUDENT.courses.filter((c) => c.progress < 90).map((c) => (
+        {STUDENT?.courses?.filter((c) => c.progress < 90).map((c) => (
           <div className="sd-cert-card locked" key={c.id}>
             <div className="sd-cert-banner" style={{ background: "#ffffff08" }}>
               <span style={{ fontSize: 40 }}>🔒</span>

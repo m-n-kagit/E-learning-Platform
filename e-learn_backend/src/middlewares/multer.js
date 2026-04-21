@@ -1,3 +1,6 @@
+//multer is a middleware for handling multipart/form-data, which is primarily used for uploading files.
+//  In this code, we are configuring multer to handle file uploads for both admin verification documents and course media (thumbnails and lesson videos). 
+// The uploaded files are temporarily stored in a specified directory before being processed and uploaded to Cloudinary. We also define file filters to ensure that only the appropriate file types are accepted for each use case, and we set limits on the file size to prevent performance issues.
 import fs from "fs";
 import path from "path";
 import multer from "multer";
@@ -31,7 +34,7 @@ const storage = multer.diskStorage({
 // The filename function generates a unique filename for the uploaded 
 // file by combining the original field name, a unique suffix (based on the current timestamp and a random number), and the original file extension. This helps prevent filename collisions when multiple files are uploaded.  
 
-const fileFilter = (req, file, cb) => {
+const adminDocumentFilter = (req, file, cb) => {
   const isPdf =
     file.mimetype === "application/pdf" ||
     path.extname(file.originalname).toLowerCase() === ".pdf";
@@ -49,8 +52,40 @@ const fileFilter = (req, file, cb) => {
 
 export const upload = multer({
   storage,
-  fileFilter,
+  fileFilter: adminDocumentFilter,
   limits: {
     fileSize: 500 * 1024, //limits the file size to 500KB to prevent large files from being uploaded which can cause performance issues
+  },
+});
+
+const courseMediaFilter = (req, file, cb) => {
+  if (file.fieldname === "thumbnail") {
+    const isImage = file.mimetype.startsWith("image/png") || file.mimetype.startsWith("image/jpeg") || file.mimetype.startsWith("image/jpg");
+    if (!isImage) {
+      cb(new Error("Course thumbnail must be an image file."));
+      return;
+    }
+    cb(null, true);
+    return;
+  }
+
+  if (file.fieldname === "lessonVideo" || file.fieldname === "lessonVideos") {
+    const isVideo = file.mimetype.startsWith("video/");
+    if (!isVideo) {
+      cb(new Error("Lesson upload must be a video file."));
+      return;
+    }
+    cb(null, true);
+    return;
+  }
+
+  cb(new Error(`Unexpected file field: ${file.fieldname}`));
+};
+
+export const courseMediaUpload = multer({
+  storage,
+  fileFilter: courseMediaFilter,
+  limits: {
+    fileSize: 200 * 1024 * 1024, //200MB
   },
 });

@@ -13,15 +13,14 @@ const removeLocalFile = (filePath) => {
   }
 };
 
-const uploadCloudinary = async (filePath) => {
+const uploadCloudinary = async (filePath, options = {}) => {
   try {
     if (!filePath) return null;
 
     const response = await cloudinary.uploader.upload(filePath, {
-      resource_type: "raw",// this states that the file being
-      //  uploaded is a raw file (not an image or video) 
-      // which is suitable for documents like PDFs, Word files, etc.
-      folder: "admin-verification-documents",
+      resource_type: options.resource_type || "raw",
+      folder: options.folder || "admin-verification-documents",
+      public_id: options.public_id,
     });
 
     console.log("File uploaded to Cloudinary:", response.secure_url);

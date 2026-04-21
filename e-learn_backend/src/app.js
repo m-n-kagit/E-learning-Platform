@@ -4,14 +4,13 @@ import cookieParser from "cookie-parser"; //cookies acces and can be set
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
 import emailRoutes from "./routes/EmailRoutes.js";
+import courseHandlingRoutes from "./routes/courseHandlingRoutes.js";
 import errorHandler from "./middlewares/errorMiddleware.js";
 import rateLimiter from "./utils/rate-limiter.js";
-import mongoSanitize from "express-mongo-sanitize"; //for sanitizing the data to prevent MongoDB injection attacks
 dotenv.config();
 //the config file is loaded before the app is created so that the environment variables are available when the app is initialized. 
 
 const app = express();
-app.use(mongoSanitize());
 
 app.use(cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:5173",
@@ -21,9 +20,9 @@ app.use(cors({
 
 app.use("/api/auth",rateLimiter.auth_limiter) // Apply rate limiting to auth routes
 app.use(express.json({limit : "16kb"})) // for resistng website crash beacuse of overloading
-app.use(express.urlencoded({extended: true, limit: "16kb"})) //for parsing url encoded data from html forms 
+app.use(express.urlencoded({extended: true, limit: "16kb"})) //url encoded means here we are parsing the data from the form and also for resistng website crash beacuse of overloading 
 // and also for resisting website crash beacuse of overloading
-app.use(express.static("public"))//
+app.use(express.static("public"))
 //for serving static files like images, css, js files etc 
 // from the public folder
 //why it is required ? ans. if we want to serve any 
@@ -36,6 +35,7 @@ app.use(cookieParser())
 // Mount auth routes
 app.use("/api/auth", authRoutes);
 app.use("/api/emails", emailRoutes); 
+app.use("/api/courses", courseHandlingRoutes);
 
 
 // Global error handler — MUST be last middleware

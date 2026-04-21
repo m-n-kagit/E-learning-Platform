@@ -303,11 +303,12 @@ function DashboardHome({ setView, go, admin }) {
 }
 
 function MyCourses() {
+  ADMIN = useSelector((state) => state.courseAdminDetails.c_admin) || ADMIN;
   return (
     <div className="ca-page">
       <h1 className="ca-h1">My Courses</h1>
       <div className="ca-course-grid">
-        {ADMIN.courses.map((c) => <AdminCourseCard key={c.id} c={c} showActions />)}
+        {ADMIN?.courses?.map((c) => <AdminCourseCard key={c.id} c={c} showActions />)}
       </div>
     </div>
   );

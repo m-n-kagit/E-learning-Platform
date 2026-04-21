@@ -1,7 +1,7 @@
 
 import Email from "../utils/send_email.js";
 import sanitizeHtml from "sanitize-html";
-
+import mongoSanitize from "mongo-sanitize"; //for sanitizing the data to prevent MongoDB injection attacks
 
 // const stripSqlKeywords = (value = "") =>
 //   String(value).replace(
@@ -18,27 +18,23 @@ const ensureString = (value) => {
 
 const escapeHtml = (value = "") =>
   String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+.replace(/&/g, "&amp;")
+.replace(/</g, "&lt;")
+.replace(/>/g, "&gt;")
+.replace(/"/g, "&quot;")
+.replace(/'/g, "&#39;");
 
 const sanitizeEmailAddress = (value = "") =>{
   const str= ensureString(value)
-    .trim()
-    .toLowerCase()
-    .replace(/\s/g, "");
- 
-
-  // Step 2: Clean HTML (prevent XSS)
-  const cleanHtml = sanitizeHtml(str, {
-    allowedTags: [], // or define allowed ones
-    allowedAttributes: {}
-  });
-
-  return cleanHtml;
-  
+  .trim()
+  .toLowerCase()
+  .replace(/\s/g, "");
+  mongo = mongoSanitize(str);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(mongo)) {
+    throw new Error("Invalid email address");
+  }
+  return mongo;
 }
 
 
@@ -46,10 +42,10 @@ const sanitizeMessage = (value = "") => {
   const str = ensureString(value);
 
   // Step 1: Remove MongoDB injection payloads
-
+  const sanitizedStr = mongoSanitize(str);
 
   // Step 2: Clean HTML (prevent XSS)
-  const cleanHtml = sanitizeHtml(str, {
+  const cleanHtml = sanitizeHtml(sanitizedStr, {
     allowedTags: [], // or define allowed ones
     allowedAttributes: {}
   });
@@ -63,7 +59,7 @@ const sanitizeMessage = (value = "") => {
 const receiveEmail = async (req, res) => {
   try {
     const { to, from, subject, message } = req.body;
-
+    mongo = mongoSanitize({ to, from, subject, message });
     const sanitizedTo = sanitizeEmailAddress(to);
     const sanitizedFrom = sanitizeEmailAddress(from);
     const sanitizedSubject = sanitizeMessage(subject);
@@ -88,4 +84,4 @@ const receiveEmail = async (req, res) => {
    }
 };
 
-export default { receiveEmail };
+export default { receiveEmail }

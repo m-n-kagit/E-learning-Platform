@@ -27,7 +27,7 @@ const getCourseById = async (req, res, next) => {
       throw new Error("Invalid courseId");
     }
 
-    const course = await Course.findById(courseId)
+    const course = await Course.findOne({ _id: courseId, isPublished: true })
       .populate("instructor", "name email")
       .populate("lessons");
 

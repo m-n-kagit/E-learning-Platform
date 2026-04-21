@@ -1,25 +1,31 @@
-import { useDispatch, useSelector } from "react-redux";
-//these cards are for only enrolled courses.
-
 export default function CourseCard({ c, showBtn }) {
-  const dispatch = useDispatch();
-  const enrolledCourses = useSelector((state) => state.enrolledCourses);
+  const courseName = c?.name || c?.title || "Untitled Course";
+  const instructorName =
+    c?.instructorName ||
+    c?.instructor?.name ||
+    c?.instructor?.email ||
+    (typeof c?.instructor === "string" ? c.instructor : "Course Admin");
+  const category = c?.category || "General";
+  const accentColor = c?.color || "#5468ff";
+  const progress = Number(c?.progress || 0);
+  const completed = Number(c?.completed || 0);
+  const total = Number(c?.total || c?.lessons?.length || 0);
 
   return (
     <div className="sd-ccard">
-      <div className="sd-ccard-thumb" style={{ background: `linear-gradient(135deg, ${c.color}33, ${c.color}11)` }}>
-        <span style={{ fontSize: 36 }}>📖</span>
-        <span className="sd-ccard-cat" style={{ background: c.color }}>{c.category}</span>
+      <div className="sd-ccard-thumb" style={{ background: `linear-gradient(135deg, ${accentColor}33, ${accentColor}11)` }}>
+        <span style={{ fontSize: 36 }}>Course</span>
+        <span className="sd-ccard-cat" style={{ background: accentColor }}>{category}</span>
       </div>
       <div className="sd-ccard-body">
-        <p className="sd-ccard-name">{c.name}</p>
-        <span className="sd-ccard-inst">{c.instructor}</span>
+        <p className="sd-ccard-name">{courseName}</p>
+        <span className="sd-ccard-inst">{instructorName}</span>
         <div className="sd-pbar" style={{ margin: "10px 0 4px" }}>
-          <div className="sd-pbar-fill" style={{ width: c.progress + "%", background: c.color }} />
+          <div className="sd-pbar-fill" style={{ width: `${progress}%`, background: accentColor }} />
         </div>
         <div className="sd-ccard-foot">
-          <span className="sd-prog-inst">{c.completed}/{c.total} lessons · {c.progress}%</span>
-          {showBtn && <button className="sd-cont-btn" style={{ borderColor: c.color, color: c.color }}>Continue</button>}
+          <span className="sd-prog-inst">{completed}/{total} lessons · {progress}%</span>
+          {showBtn && <button className="sd-cont-btn" style={{ borderColor: accentColor, color: accentColor }}>Continue</button>}
         </div>
       </div>
     </div>

@@ -55,10 +55,10 @@ export default function Contact() {
 
   const submit = () => {
     const cleanedForm = {
-      name: sanitizeHtml(form.name).trim(),
+      name: sanitizeHtml(form.name),
       email: sanitizeHtml(form.email),
-      subject: sanitizeHtml(form.subject).trim(),
-      message: sanitizeHtml(form.message).trim(),
+      subject: sanitizeHtml(form.subject),
+      message: sanitizeHtml(form.message),
     };
 
     setForm(cleanedForm);

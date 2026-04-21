@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import "Lesson.models.js"; // Ensure Lesson model is registered before referencing it
+import "./Lesson.models.js";
 const courseSchema = new mongoose.Schema(
   {
     title: {
@@ -7,10 +7,6 @@ const courseSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
-    lessons:[{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Lesson"
-    }],
 
     description: {
       type: String,
@@ -25,6 +21,11 @@ const courseSchema = new mongoose.Schema(
 
     thumbnail: {
       type: String, // image URL
+      default: ""
+    },
+
+    thumbnailPublicId: {
+      type: String,
       default: ""
     },
 
@@ -90,4 +91,5 @@ const courseSchema = new mongoose.Schema(
   }
 );
 
-export default courseModel = mongoose.model("Course", courseSchema);
+const Course = mongoose.model("Course", courseSchema);
+export default Course;

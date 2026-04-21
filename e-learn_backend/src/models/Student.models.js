@@ -59,4 +59,5 @@ joinedDate:{
     
 })
 
-export default studentModel = mongoose.model("Student", studentSchema);
+const Student = mongoose.model("Student", studentSchema);
+export default Student;

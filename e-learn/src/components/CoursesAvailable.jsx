@@ -1,146 +1,114 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
-import { addCourse, enrollStudent, selectCourse } from "../features/activeCoursesSlice";
-import aiImage from "../images/Ai_image.jpg";
-import uiImage from "../images/UI_image.jpg";
-import cyberImage from "../images/Cyber_image.jpg";
+import { enrollStudent, selectCourse, setCourses } from "../features/activeCoursesSlice";
 import devImage from "../images/1687.jpg";
-import dataAnalyticsImage from "../images/DA_image.jfif";
 
-const HOME_COURSES = [
-  {
-    id: 1,
-    icon: devImage,
-    cat: "Development",
-    lvl: "Beginner",
-    name: "Full-Stack Web Dev Bootcamp",
-    desc: "Build real-world apps from HTML to deployment with React & Node.js.",
-    stu: "12,400",
-  },
-  {
-    id: 2,
-    icon: aiImage,
-    cat: "AI & ML",
-    lvl: "Intermediate",
-    name: "Machine Learning Fundamentals",
-    desc: "Understand algorithms, neural networks, and build intelligent models.",
-    stu: "8,900",
-  },
-  {
-    id: 3,
-    icon: uiImage,
-    cat: "Design",
-    lvl: "All Levels",
-    name: "UI/UX Design Mastery",
-    desc: "Learn to craft beautiful, user-centered digital products from scratch.",
-    stu: "6,200",
-  },
-  {
-    id: 4,
-    icon: cyberImage,
-    cat: "Data Science",
-    lvl: "Intermediate",
-    name: "Data Analytics with Python",
-    desc: "Analyze, visualize, and derive insights from complex datasets.",
-    stu: "9,700",
-  },
-  {
-    id: 5,
-    icon: dataAnalyticsImage,
-    cat: "Cloud",
-    lvl: "Advanced",
-    name: "AWS Cloud Architecture",
-    desc: "Design scalable, secure cloud infrastructure on Amazon Web Services.",
-    stu: "4,500",
-  },
-  {
-    id: 6,
-    icon: cyberImage,
-    cat: "Security",
-    lvl: "Intermediate",
-    name: "Ethical Hacking & Cybersecurity",
-    desc: "Protect systems and networks with ethical hacking techniques.",
-    stu: "7,800",
-  },
-];
+const resolveInstructorName = (instructor) => {
+  if (!instructor) return "Course Admin";
+  if (typeof instructor === "string") return instructor;
+  return instructor.name || instructor.fullName || instructor.email || "Course Admin";
+};
+
+const formatLevel = (level) => {
+  const normalizedLevel = String(level || "").trim().toLowerCase();
+  if (!normalizedLevel) return "Beginner";
+  return normalizedLevel.charAt(0).toUpperCase() + normalizedLevel.slice(1);
+};
 
 export default function CoursesAvailable() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const student = useSelector((state) => state.studentDetails.student);
-  const { courses: enrolledCourses, selectedCourseId } = useSelector((state) => state.activeCourses);
+  const { courses, selectedCourseId } = useSelector((state) => state.activeCourses);
   const [queryDraft, setQueryDraft] = useState("");
   const [query, setQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [category, setCategory] = useState("All");
   const [level, setLevel] = useState("All");
+  const [status, setStatus] = useState("idle");
+  const [error, setError] = useState("");
 
-  const mapHomeCourseToSchema = (course) => {
-    const normalizedLevel = String(course?.lvl || "").toLowerCase();
+  useEffect(() => {
+    let ignore = false;
 
-    return {
-      _id: String(course.id),
-      title: course.name,
-      description: course.desc,
-      instructor: "Course Admin",
-      thumbnail: course.icon,
-      price: 0,
-      category: course.cat,
-      level: ["beginner", "intermediate", "advanced"].includes(normalizedLevel)
-        ? normalizedLevel
-        : "beginner",
-      lessons: [],
-      enrolledStudents: [],
-      ratings: [],
-      averageRating: 0,
-      isPublished: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    const fetchCourses = async () => {
+      try {
+        setStatus("loading");
+        setError("");
+        const response = await axios.get("/api/courses/available", {
+          withCredentials: true,
+        });
+        const fetchedCourses = Array.isArray(response?.data?.data) ? response.data.data : [];
+        if (ignore) return;
+        dispatch(setCourses(fetchedCourses));
+        setStatus("success");
+      } catch (fetchError) {
+        if (ignore) return;
+        console.error("Failed to fetch available courses:", fetchError);
+        setError(fetchError?.response?.data?.message || "Unable to load available courses right now.");
+        setStatus("error");
+      }
     };
-  };
 
-  const handleEnroll = (course) => {
-    const mappedCourse = mapHomeCourseToSchema(course);
+    fetchCourses();
+
+    return () => {
+      ignore = true;
+    };
+  }, [dispatch]);
+
+  const availableCourses = useMemo( //useMemo 
+    () => courses.filter((course) => course.isPublished),
+    [courses]
+  );
+
+  const categories = useMemo(
+    () => ["All", ...new Set(availableCourses.map((course) => course.category).filter(Boolean))],
+    [availableCourses]
+  );
+
+  const levels = useMemo(
+    () => ["All", ...new Set(availableCourses.map((course) => formatLevel(course.level)).filter(Boolean))],
+    [availableCourses]
+  );
+
+  const filteredCourses = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return availableCourses.filter((course) => {
+      const title = String(course.title || "").toLowerCase();
+      const description = String(course.description || "").toLowerCase();
+      const courseCategory = String(course.category || "").toLowerCase();
+      const instructorName = resolveInstructorName(course.instructor).toLowerCase();
+      const courseLevel = formatLevel(course.level);
+
+      const textMatch =
+        !normalizedQuery ||
+        title.includes(normalizedQuery) ||
+        description.includes(normalizedQuery) ||
+        courseCategory.includes(normalizedQuery) ||
+        instructorName.includes(normalizedQuery);
+      const categoryMatch = category === "All" || course.category === category;
+      const levelMatch = level === "All" || courseLevel === level;
+
+      return textMatch && categoryMatch && levelMatch;
+    });
+  }, [availableCourses, category, level, query]);
+
+  const handleSearch = () => setQuery(queryDraft);
+
+  const handleOpenCourse = (course) => {
     const studentId = student?._id || "local-student";
-    const alreadyAdded = enrolledCourses.some((item) => item._id === mappedCourse._id);
+    dispatch(enrollStudent({ courseId: course._id, studentId }));
+    dispatch(selectCourse(course._id));
 
-    if (!alreadyAdded) {
-      dispatch(addCourse(mappedCourse));
-    }
-
-    dispatch(enrollStudent({ courseId: mappedCourse._id, studentId }));
-    dispatch(selectCourse(mappedCourse._id));
-    navigate(`/course/${mappedCourse._id}`, {
+    navigate(`/course/${course._id}`, {
       state: { backgroundLocation: location },
     });
   };
-
-  const categories = useMemo(
-    () => ["All", ...new Set(HOME_COURSES.map((c) => c.cat))],
-    []
-  );
-  const levels = useMemo(
-    () => ["All", ...new Set(HOME_COURSES.map((c) => c.lvl))],
-    []
-  );
-
-  const courses = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return HOME_COURSES.filter((c) => {
-      const textMatch =
-        !q ||
-        c.name.toLowerCase().includes(q) ||
-        c.cat.toLowerCase().includes(q) ||
-        c.desc.toLowerCase().includes(q);
-      const categoryMatch = category === "All" || c.cat === category;
-      const levelMatch = level === "All" || c.lvl === level;
-      return textMatch && categoryMatch && levelMatch;
-    });
-  }, [query, category, level]);
-
-  const handleSearch = () => setQuery(queryDraft);
 
   return (
     <div className="sd-page">
@@ -162,7 +130,7 @@ export default function CoursesAvailable() {
         </button>
         <button
           className="sd-avail-filter-btn"
-          onClick={() => setShowFilters((v) => !v)}
+          onClick={() => setShowFilters((value) => !value)}
           aria-label="Toggle filters"
           title="Toggle filters"
         >
@@ -202,30 +170,48 @@ export default function CoursesAvailable() {
       )}
 
       <div className="sd-avail-results">
-        {courses.length === 0 && (
+        {status === "loading" && (
+          <p className="sd-avail-empty">Loading available courses...</p>
+        )}
+        {status === "error" && (
+          <p className="sd-avail-empty">{error}</p>
+        )}
+        {status !== "loading" && !error && filteredCourses.length === 0 && (
           <p className="sd-avail-empty">No courses found for this search.</p>
         )}
+
         <div className="sd-avail-grid">
-          {courses.map((c) => (
-            <div className="sd-avail-card" key={c.id}>
-              <div className="sd-avail-top">
-                <img src={c.icon} alt={c.cat} className="sd-avail-image" />
-                <div className="sd-avail-level">{c.lvl}</div>
+          {filteredCourses.map((course) => {
+            const levelLabel = formatLevel(course.level);
+            const studentsLabel = Number(course.studentsCount || course.enrolledStudents?.length || 0).toLocaleString("en-IN");
+            const thumbnail = course.thumbnail || devImage;
+            const instructorName = resolveInstructorName(course.instructor);
+            const lessonsCount = Array.isArray(course.lessons) ? course.lessons.length : 0;
+
+            return (
+              <div className="sd-avail-card" key={course._id}>
+                <div className="sd-avail-top">
+                  <img src={thumbnail} alt={course.title} className="sd-avail-image" />
+                  <div className="sd-avail-level">{levelLabel}</div>
+                </div>
+                <div className="sd-avail-cat">{course.category || "General"}</div>
+                <div className="sd-avail-name">{course.title}</div>
+                <p className="sd-avail-desc">
+                  {course.description || `${lessonsCount} lessons by ${instructorName}`}
+                </p>
+                <div className="sd-avail-foot">
+                  <span className="sd-avail-stu">
+                    {studentsLabel} students · {lessonsCount} lessons
+                  </span>
+                  <button className="sd-avail-enroll" onClick={() => handleOpenCourse(course)}>
+                    {selectedCourseId === String(course._id) ? "View Details" : "Open Course"}
+                  </button>
+                </div>
               </div>
-              <div className="sd-avail-cat">{c.cat}</div>
-              <div className="sd-avail-name">{c.name}</div>
-              <p className="sd-avail-desc">{c.desc}</p>
-              <div className="sd-avail-foot">
-                <span className="sd-avail-stu">{c.stu} students</span>
-                <button className="sd-avail-enroll" onClick={() => handleEnroll(c)}>
-                  {selectedCourseId === String(c.id) ? "View Details" : "Enroll"}
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
-
     </div>
   );
 }
