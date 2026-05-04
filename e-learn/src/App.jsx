@@ -223,9 +223,9 @@ function CourseDetailModal() {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "min(980px, 100%)",
+          width: "min(1080px, 100%)",
           maxHeight: "90vh",
-          overflowY: "auto",
+          overflow: "hidden",
           position: "relative",
         }}
       >

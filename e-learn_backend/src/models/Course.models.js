@@ -29,7 +29,7 @@ const courseSchema = new mongoose.Schema(
       default: ""
     },
 
-    price: {
+    price: { //in rupees
       type: Number,
       default: 0
     },

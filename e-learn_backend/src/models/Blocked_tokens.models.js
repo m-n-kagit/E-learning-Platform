@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const BLOCKED_TOKEN_TTL_SECONDS = 5 * 60;
+const BLOCKED_TOKEN_TTL_SECONDS = 1* 60; 
 
 const blockedTokenSchema = new mongoose.Schema(
   {

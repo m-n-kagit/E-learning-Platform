@@ -197,7 +197,6 @@ export default function Signup() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="auth-icon">🚀</div>
         <h1 className="auth-title">Create an account</h1>
         <p className="auth-sub">
           Already have one?{" "}

@@ -64,9 +64,17 @@ export default function Login() {
     } catch (error) {
       console.error("Error fetching data:", error);
       console.error("Error response:", error.response?.data?.message);
-      setLoginError(
-          "Login failed. Please try again."
-      );
+      if(error.response.status >= 400 && error.response?.status < 500){ 
+
+        setLoginError(
+          error.response?.data?.message || "Invalid email or password. Please try again."
+        );
+      }
+      else{
+        setLoginError(
+            "An error occurred while trying to log in, might be an internal server error. Please try again later."
+        );
+      }
     }
   };
   
@@ -119,9 +127,7 @@ export default function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="auth-icon">🎓</div>
-
-        <h1 className="auth-title">Welcome back</h1>
+        <h1 className="auth-title font-weight-bold">Welcome back</h1>
 
         <p className="auth-sub">
           No account?{" "}

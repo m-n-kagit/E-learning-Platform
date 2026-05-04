@@ -20,7 +20,13 @@ const instructorSchema = new mongoose.Schema({
     courses : [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Course"
-    }]
+    },
+     ],
+     review : {
+        type: Number,
+        min: 1,
+        max: 5
+     }
 },{timestamps: true})
 
 const Instructor = mongoose.model("Instructor", instructorSchema);

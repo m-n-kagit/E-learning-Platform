@@ -78,7 +78,7 @@ export default function CourseAdminDashboard() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [view, setView] = useState(null);
-  const profileRef = useRef(null);
+  const profileRef = useRef(null); //used to detect clicks outside profile dropdown
   const notifRef = useRef(null);
   const currentAdmin = {
     ...ADMIN,
@@ -146,19 +146,19 @@ export default function CourseAdminDashboard() {
   const renderPage = () => {
     if (view === "profile") return <ViewProfile onBack={() => setView(null)} admin={currentAdmin} />;
     if (view === "edit-profile") return <EditProfile onBack={() => setView(null)} admin={currentAdmin} />;
-    if (view === "income") return <MonthlyIncome onBack={() => setView(null)} />;
-    if (view === "reviews") return <TeachingReviews onBack={() => setView(null)} />;
+    if (view === "income") return <MonthlyIncome onBack={() => setView(null)} admin={currentAdmin} />;
+    if (view === "reviews") return <TeachingReviews onBack={() => setView(null)} admin={currentAdmin} />;
     switch (activeNav) {
       case "dashboard":   return <DashboardHome setView={setView} go={go} admin={currentAdmin} />;
-      case "courses":     return <MyCourses />;
+      case "courses":     return <MyCourses admin={currentAdmin}/>;
       case "course-upload":      return <CourseUpload />;
       
-      case "performance": return <StudentPerformance />;
-      case "analysis":    return <CourseAnalysis />;
-      case "feedback":    return <Feedback />;
-      case "transactions":return <Transactions />;
+      case "performance": return <StudentPerformance admin={currentAdmin} />;
+      case "analysis":    return <CourseAnalysis admin={currentAdmin} />;
+      case "feedback":    return <Feedback admin={currentAdmin} />;
+      case "transactions":return <Transactions admin={currentAdmin} />;
       default:            return <DashboardHome setView={setView} go={go} admin={currentAdmin} />;
-    }
+    } //setView is used to switch on the profile dropdown options that require a different view than the main nav items
   };
 
   return (
@@ -262,10 +262,10 @@ export default function CourseAdminDashboard() {
    PAGE COMPONENTS
 ───────────────────────────────────────────── */
 function DashboardHome({ setView, go, admin }) {
-  
-  const totalStudents = ADMIN.courses.reduce((a, c) => a + c.students, 0);
-  const totalRevenue = ADMIN.courses.reduce((a, c) => a + c.revenue, 0);
-  const avgRating = (ADMIN.courses.reduce((a, c) => a + c.rating, 0) / ADMIN.courses.length).toFixed(1);
+  const courses = Array.isArray(admin?.courses) && admin.courses.length ? admin.courses : ADMIN.courses;
+  const totalStudents = courses.reduce((a, c) => a + c.students, 0);
+  const totalRevenue = courses.reduce((a, c) => a + c.revenue, 0);
+  const avgRating = (courses.reduce((a, c) => a + c.rating, 0) / courses.length).toFixed(1);
 
   return (
     <div className="ca-page">
@@ -279,7 +279,7 @@ function DashboardHome({ setView, go, admin }) {
 
       <div className="ca-stat-row">
         {[
-          { icon: "▤", label: "Active Courses", value: ADMIN.courses.filter(c => c.status === "Live").length },
+          { icon: "▤", label: "Active Courses", value: courses.filter(c => c.status === "Live").length },
           { icon: "◎", label: "Total Students", value: totalStudents.toLocaleString() },
           { icon: "★", label: "Avg Rating", value: avgRating },
           { icon: "₹", label: "Total Earnings", value: `₹${(totalRevenue/100000).toFixed(1)}L` },
@@ -296,101 +296,31 @@ function DashboardHome({ setView, go, admin }) {
 
       <h2 className="ca-sec-title" style={{ marginTop: 32 }}>Your Courses</h2>
       <div className="ca-course-grid">
-        {ADMIN.courses.map((c) => <AdminCourseCard key={c.id} c={c} />)}
+        {courses.map((c) => <AdminCourseCard key={c.id} c={c} />)}
       </div>
     </div>
   );
 }
 
-function MyCourses() {
-  ADMIN = useSelector((state) => state.courseAdminDetails.c_admin) || ADMIN;
+function MyCourses({ admin }) {
+  const courses = admin?.courses || ADMIN.courses;
+
   return (
     <div className="ca-page">
       <h1 className="ca-h1">My Courses</h1>
       <div className="ca-course-grid">
-        {ADMIN?.courses?.map((c) => <AdminCourseCard key={c.id} c={c} showActions />)}
+        {courses.map((c) => <AdminCourseCard key={c.id} c={c} showActions />)}
       </div>
     </div>
   );
 }
 
-// function CourseUpload() {
-//   const [tab, setTab] = useState("video");
-//   const quizzes = [
-//     { id: 1, title: "Week 1 - HTML & CSS Basics", course: "Full-Stack Web Dev", questions: 15, submissions: 420, avgScore: 78 },
-//     { id: 2, title: "Module 3 - REST APIs", course: "Node.js Masterclass", questions: 12, submissions: 300, avgScore: 72 },
-//     { id: 3, title: "React Hooks Deep Dive", course: "React Advanced Patterns", questions: 20, submissions: 180, avgScore: 85 },
-//   ];
 
-//   return (
-//     <div className="ca-page">
-//       <h1 className="ca-h1">Course Upload</h1>
-//       <div className="ca-tabs">
-//         {["video", "article", "document"].map((t) => (
-//           <button key={t} className={`ca-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
-//             {t === "video" ? "Video" : t === "article" ? "Article" : "Document"}
-//           </button>
-//         ))}
-//       </div>
-//       <div className="ca-upload-form">
-//         <div className="ca-fgroup">
-//           <label>Select Course</label>
-//           <select>
-//             {ADMIN.courses.map((c) => <option key={c.id}>{c.name}</option>)}
-//           </select>
-//         </div>
-//         <div className="ca-fgroup">
-//           <label>Content Title</label>
-//           <input type="text" placeholder={`Enter ${tab} title`} />
-//         </div>
-//         <div className="ca-fgroup">
-//           <label>Description</label>
-//           <textarea rows={3} placeholder="Brief description of this content..." />
-//         </div>
-//         <div className="ca-upload-zone">
-//           <span className="ca-upload-ico">Upload</span>
-//           <p>Drag and drop or <span className="acc">browse files</span></p>
-//           <span className="ca-upload-hint">{tab === "video" ? "MP4, MOV - Max 2GB" : "PDF, DOCX - Max 50MB"}</span>
-//         </div>
-//         <button className="ca-cta-btn" style={{ marginTop: 16 }}>
-//           Upload {tab.charAt(0).toUpperCase() + tab.slice(1)}
-//         </button>
-//       </div>
+function StudentPerformance({ admin }) {
+  const studentPerformance = Array.isArray(admin?.studentPerformance) && admin.studentPerformance.length
+    ? admin.studentPerformance
+    : ADMIN.studentPerformance;
 
-//       <div className="ca-page-head" style={{ marginTop: 28 }}>
-//         <h1 className="ca-h1" style={{ margin: 0 }}>Quiz Builder</h1>
-//         <button className="ca-cta-btn">+ New Quiz</button>
-//       </div>
-//       <div className="ca-table-wrap">
-//         <table className="ca-table">
-//           <thead>
-//             <tr><th>Quiz Title</th><th>Course</th><th>Questions</th><th>Submissions</th><th>Avg Score</th><th>Actions</th></tr>
-//           </thead>
-//           <tbody>
-//             {quizzes.map((q) => (
-//               <tr key={q.id}>
-//                 <td className="ca-bold">{q.title}</td>
-//                 <td><span className="ca-tag blue">{q.course}</span></td>
-//                 <td>{q.questions}</td>
-//                 <td>{q.submissions}</td>
-//                 <td><span className={`ca-tag ${q.avgScore >= 80 ? "green" : "orange"}`}>{q.avgScore}%</span></td>
-//                 <td>
-//                   <div style={{ display: "flex", gap: 8 }}>
-//                     <button className="ca-action-btn">Edit</button>
-//                     <button className="ca-action-btn red">Delete</button>
-//                   </div>
-//                 </td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-function StudentPerformance() {
   return (
     <div className="ca-page">
       <h1 className="ca-h1">Student Performance</h1>
@@ -400,7 +330,7 @@ function StudentPerformance() {
             <tr><th>Student</th><th>Course</th><th>Quiz Score</th><th>Progress</th><th>Status</th></tr>
           </thead>
           <tbody>
-            {ADMIN.studentPerformance.map((s, i) => (
+            {studentPerformance.map((s, i) => (
               <tr key={i}>
                 <td className="ca-bold">{s.name}</td>
                 <td>{s.course}</td>
@@ -421,12 +351,14 @@ function StudentPerformance() {
   );
 }
 
-function CourseAnalysis() {
+function CourseAnalysis({ admin }) {
+  const courses = Array.isArray(admin?.courses) && admin.courses.length ? admin.courses : ADMIN.courses;
+
   return (
     <div className="ca-page">
       <h1 className="ca-h1">Course Analysis</h1>
       <div className="ca-analysis-grid">
-        {ADMIN.courses.map((c) => (
+        {courses.map((c) => (
           <div className="ca-analysis-card" key={c.id}>
             <div className="ca-analysis-top" style={{ borderLeft: `4px solid ${c.color}` }}>
               <div>
@@ -462,12 +394,14 @@ function CourseAnalysis() {
   );
 }
 
-function Feedback() {
+function Feedback({ admin }) {
+  const reviews = Array.isArray(admin?.reviews) && admin.reviews.length ? admin.reviews : ADMIN.reviews;
+
   return (
     <div className="ca-page">
       <h1 className="ca-h1">Student Feedback</h1>
       <div className="ca-reviews-list">
-        {ADMIN.reviews.map((r) => (
+        {reviews.map((r) => (
           <div className="ca-review-card" key={r.id}>
             <div className="ca-review-top">
               <div className="ca-reviewer-ava">{r.student[0]}</div>
@@ -485,7 +419,8 @@ function Feedback() {
   );
 }
 
-function Transactions() {
+function Transactions({ admin }) {
+  const courses = Array.isArray(admin?.courses) && admin.courses.length ? admin.courses : ADMIN.courses;
   const txns = [
     { id: "TXN-401", date: "Mar 22, 2024", course: "Full-Stack Web Dev Bootcamp", students: 3, amount: "₹14,997", status: "Paid" },
     { id: "TXN-402", date: "Mar 15, 2024", course: "Node.js Masterclass", students: 5, amount: "₹19,995", status: "Paid" },
@@ -562,8 +497,14 @@ function ViewProfile({ onBack, admin }) {
     </div>
   );
 }
-function MonthlyIncome({ onBack }) {
-  const max = Math.max(...ADMIN.monthlyIncome.map((m) => m.amount));
+function MonthlyIncome({ onBack , admin  }) {
+  const profile = admin || ADMIN;
+  const monthlyIncome = Array.isArray(profile?.monthlyIncome) && profile.monthlyIncome.length
+    ? profile.monthlyIncome
+    : ADMIN.monthlyIncome;
+  const courses = Array.isArray(profile?.courses) && profile.courses.length ? profile.courses : ADMIN.courses;
+  const max = Math.max(...monthlyIncome.map((m) => m.amount));
+  const totalRevenue = courses.reduce((a, x) => a + x.revenue, 0) || 1;
   return (
     <div className="ca-page">
       <button className="ca-back" onClick={onBack}>← Back</button>
@@ -574,7 +515,7 @@ function MonthlyIncome({ onBack }) {
         <div className="ca-stat-card"><span className="ca-stat-ico">₹</span><span className="ca-stat-val">₹5.28L</span><span className="ca-stat-lbl">YTD Total</span></div>
       </div>
       <div className="ca-income-chart large">
-        {ADMIN.monthlyIncome.map((m) => {
+        {monthlyIncome.map((m) => {
           const pct = (m.amount / max) * 100;
           return (
             <div key={m.month} className="ca-bar-col">
@@ -588,14 +529,14 @@ function MonthlyIncome({ onBack }) {
         })}
       </div>
       <h2 className="ca-sec-title" style={{ marginTop: 32 }}>Income by Course</h2>
-      {ADMIN.courses.map((c) => (
+      {courses.map((c) => (
         <div className="ca-prog-card" key={c.id}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <p className="ca-bold" style={{ margin: 0 }}>{c.name}</p>
             <span className="ca-txn-amt">₹{(c.revenue / 1000).toFixed(0)}k</span>
           </div>
           <div className="ca-pbar" style={{ height: 8 }}>
-            <div className="ca-pbar-fill" style={{ width: (c.revenue / ADMIN.courses.reduce((a, x) => a + x.revenue, 0)) * 100 + "%", background: c.color }} />
+            <div className="ca-pbar-fill" style={{ width: (c.revenue / totalRevenue) * 100 + "%", background: c.color }} />
           </div>
         </div>
       ))}
@@ -603,8 +544,9 @@ function MonthlyIncome({ onBack }) {
   );
 }
 
-function TeachingReviews({ onBack }) {
-  const avgRating = (ADMIN.reviews.reduce((a, r) => a + r.rating, 0) / ADMIN.reviews.length).toFixed(1);
+function TeachingReviews({ onBack, admin }) {
+  const reviews = Array.isArray(admin?.reviews) && admin.reviews.length ? admin.reviews : ADMIN.reviews;
+  const avgRating = (reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1);
   return (
     <div className="ca-page">
       <button className="ca-back" onClick={onBack}>← Back</button>
@@ -612,12 +554,12 @@ function TeachingReviews({ onBack }) {
         <div className="ca-big-rating">
           <span className="ca-big-rating-num">{avgRating}</span>
           <div className="ca-stars" style={{ fontSize: 18 }}>{"★".repeat(Math.round(avgRating))}</div>
-          <span style={{ fontSize: 12, color: "#666" }}>{ADMIN.reviews.length} reviews</span>
+          <span style={{ fontSize: 12, color: "#666" }}>{reviews.length} reviews</span>
         </div>
         <div style={{ flex: 1 }}>
           {[5, 4, 3, 2, 1].map((r) => {
-            const count = ADMIN.reviews.filter((x) => x.rating === r).length;
-            const pct = (count / ADMIN.reviews.length) * 100;
+            const count = reviews.filter((x) => x.rating === r).length;
+            const pct = (count / reviews.length) * 100;
             return (
               <div key={r} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <span style={{ fontSize: 12, color: "#888", width: 16 }}>{r}★</span>
@@ -631,7 +573,7 @@ function TeachingReviews({ onBack }) {
         </div>
       </div>
       <div className="ca-reviews-list">
-        {ADMIN.reviews.map((r) => (
+        {reviews.map((r) => (
           <div className="ca-review-card" key={r.id}>
             <div className="ca-review-top">
               <div className="ca-reviewer-ava">{r.student[0]}</div>
