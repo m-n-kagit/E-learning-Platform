@@ -23,6 +23,14 @@ const courseSchema = new mongoose.Schema(
       type: String, // image URL
       default: ""
     },
+    overview_video:{
+      type: String, //video URL
+      default: ""
+    },
+    overview_videoPublicId: {
+      type: String,
+      default: ""
+    },
 
     thumbnailPublicId: {
       type: String,
@@ -34,7 +42,7 @@ const courseSchema = new mongoose.Schema(
       default: 0
     },
 
-    category: {
+    category: { //category of the course, e.g., "Programming", "Design", "Marketing", etc.
       type: String,
       trim: true
     },

@@ -177,7 +177,7 @@ const uploadContent  = async (req,res,next)=>{
     }
 }
 
-const getAllCourses = async (req,res,next)=>{
+const getAllCourses = async (req,res,next)=>{ // courses for course admin and instructor
     try{
     const userId = req.user?._id;
     if(!userId){
