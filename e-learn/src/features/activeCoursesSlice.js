@@ -89,7 +89,9 @@ const initialState = {
   selectedCourseId: null,
 };
 
-const mergeCourseLists = (existingCourses = [], incomingCourses = []) => {
+const mergeCourseLists = (existingCourses = [], incomingCourses = []) => { //fucntion to merge existing courses with
+//  incoming courses, ensuring no duplicates 
+// and preserving existing data where appropriate.
   const courseMap = new Map(existingCourses.map((course) => [String(course._id), course]));
 
   incomingCourses.forEach((course) => {
@@ -122,6 +124,7 @@ const activeCoursesSlice = createSlice({
   initialState,
   reducers: {
     setCourses(state, action) {
+        //state <-the current state of the slice.
         //action is the payload that is passed 
         // when dispatching the action, 
         // it contains the data that we want to set in the state. 

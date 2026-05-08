@@ -1,5 +1,8 @@
 import { useRef, useState } from "react";
 import axios from "axios";
+import { useDispatch, useSelector } from "react-redux";
+import { addCourse, updateCourse } from "../../features/activeCoursesSlice";
+import { updateCourseAdmin } from "../../features/course_admin_details";
 
 const LEVELS = [
   { value: "beginner", label: "Beginner", icon: "B" },
@@ -18,6 +21,23 @@ const createEmptyLessonForm = () => ({
   module: "",
   description: "",
   lessonVideo: null,
+});
+
+const deriveInitials = (name = "") => {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "";
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return parts[0][0].toUpperCase();
+};
+
+const buildInstructorDetails = (admin = {}) => ({
+  _id: String(admin?._id || "").trim(),
+  name: String(admin?.name || "").trim() || "Course Admin",
+  email: String(admin?.email || "").trim(),
+  initial: String(admin?.initial || admin?.initials || deriveInitials(admin?.name)).trim(),
+  initials: String(admin?.initials || admin?.initial || deriveInitials(admin?.name)).trim(),
+  bio: String(admin?.bio || "").trim(),
+  location: String(admin?.location || "").trim(),
 });
 
 function Stepper({ current }) {
@@ -75,6 +95,9 @@ function Stepper({ current }) {
 }
 
 function CourseDetailsForm({ onNext }) {
+  const dispatch = useDispatch();
+  const courseAdmin = useSelector((state) => state.courseAdminDetails.c_admin);
+  const instructorDetails = buildInstructorDetails(courseAdmin);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -87,12 +110,17 @@ function CourseDetailsForm({ onNext }) {
   const [submitError, setSubmitError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const fileRef = useRef(null);
-
   const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 
   const handleThumb = (event) => {
-    const file = event.target.files?.[0];
+    const file = event.target.files?.[0]; //only the first file will be uploaded
     if (!file) return;
+
+    if (!allowedTypes.includes(file.type)) {
+      setSubmitError("Only JPEG, PNG, and WebP image files are allowed.");
+      return;
+    }
 
     setField("thumbnail", file);
     const reader = new FileReader();
@@ -141,10 +169,32 @@ function CourseDetailsForm({ onNext }) {
       const response = await axios.post("/api/courses/upload-content", formData, {
         withCredentials: true,
       });
+      const savedCourse = response?.data?.data || null;
+      const courseRecord = {
+        ...savedCourse,
+        title: savedCourse?.title || form.name.trim(),
+        name: savedCourse?.name || form.name.trim(),
+        description: savedCourse?.description || form.description.trim(),
+        price: savedCourse?.price ?? Number(form.price),
+        level: savedCourse?.level || form.level,
+        thumbnail: savedCourse?.thumbnail || thumbPreview || "",
+        instructor: savedCourse?.instructor || instructorDetails,
+        instructorName: instructorDetails.name,
+        isPublished: typeof savedCourse?.isPublished === "boolean" ? savedCourse.isPublished : true,
+      };
+
+      dispatch(addCourse(courseRecord));
+      dispatch(updateCourseAdmin({
+        coursesManaged: Array.from(new Set([
+          ...(Array.isArray(courseAdmin?.coursesManaged) ? courseAdmin.coursesManaged : []),
+          courseRecord._id,
+        ].filter(Boolean))),
+      }));
 
       onNext({
         ...form,
-        savedCourse: response?.data?.data || null,
+        savedCourse: courseRecord,
+        instructor: instructorDetails,
       });
     } catch (error) {
       console.error("Failed to save course:", error);
@@ -158,6 +208,17 @@ function CourseDetailsForm({ onNext }) {
     <div style={styles.card}>
       <div style={styles.cardTitle}>Create a New Course</div>
       <div style={styles.cardSubtitle}>Fill in the details to set up your course before adding lessons.</div>
+
+      <div style={styles.instructorCard}>
+        <div style={styles.instructorAvatar}>
+          {instructorDetails.initials || "CA"}
+        </div>
+        <div>
+          <div style={styles.instructorLabel}>Instructor</div>
+          <div style={styles.instructorName}>{instructorDetails.name}</div>
+          <div style={styles.instructorMeta}>{instructorDetails.email || "No email available"}</div>
+        </div>
+      </div>
 
       <div style={styles.formGrid}>
         <div style={{ ...styles.fgroup, gridColumn: "1 / -1" }}>
@@ -183,15 +244,16 @@ function CourseDetailsForm({ onNext }) {
         </div>
 
         <div style={styles.fgroup}>
-          <label style={styles.label}>Price (USD)</label>
+          <label style={styles.label}>Price (Rupees)</label>
           <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#4a6830", fontSize: 14 }}>$</span>
+            <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#4a6830", fontSize: 14 }}>₹</span>
             <input
               type="number"
               min="0"
               style={{ ...styles.input, paddingLeft: 28, ...(errors.price ? styles.inputError : {}) }}
-              placeholder="49.99"
+              placeholder="2000"
               value={form.price}
+              step="1000"
               onChange={(event) => setField("price", event.target.value)}
             />
           </div>
@@ -282,7 +344,7 @@ function CourseDetailsForm({ onNext }) {
             )}
           </div>
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleThumb} />
-        </div>
+        </div>{/*only image file can be uploaded */}
       </div>
 
       <div style={styles.footer}>
@@ -300,6 +362,7 @@ function CourseDetailsForm({ onNext }) {
 }
 
 function LessonBuilder({ courseData, onBack }) {
+  const dispatch = useDispatch();
   const [tab, setTab] = useState("video");
   const [lessonForm, setLessonForm] = useState(createEmptyLessonForm());
   const [queuedLessons, setQueuedLessons] = useState([]);
@@ -404,6 +467,23 @@ function LessonBuilder({ courseData, onBack }) {
       for (const [index, lesson] of lessonsToPublish.entries()) {
         await persistLesson(lesson, existingLessonsCount + index + 1);
       }
+
+      const normalizedLessons = lessonsToPublish.map((lesson, index) => ({
+        title: lesson.title,
+        lessonName: lesson.module || lesson.title,
+        description: lesson.description || "",
+        order: existingLessonsCount + index + 1,
+      }));
+
+      dispatch(updateCourse({
+        _id: courseData.savedCourse._id,
+        updates: {
+          lessons: [
+            ...(Array.isArray(courseData.savedCourse?.lessons) ? courseData.savedCourse.lessons : []),
+            ...normalizedLessons,
+          ],
+        },
+      }));
 
       setQueuedLessons([]);
       resetLessonForm();
@@ -574,6 +654,7 @@ function LessonBuilder({ courseData, onBack }) {
 }
 
 export default function CourseUpload() {
+  const courseAdmin = useSelector((state) => state.courseAdminDetails.c_admin);
   const [step, setStep] = useState(1);
   const [courseData, setCourseData] = useState(null);
 
@@ -588,6 +669,11 @@ export default function CourseUpload() {
     <div style={{ background: "#e9efdc", minHeight: "100vh", fontFamily: "'Inter', sans-serif", color: "#1a2e0f" }}>
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "24px 20px 48px" }}>
         <Stepper current={step} />
+        {!courseAdmin?._id && (
+          <div style={styles.warningMsg}>
+            Instructor details are still loading. New courses will sync fully once the course admin profile is available.
+          </div>
+        )}
         {step === 1 && <CourseDetailsForm onNext={handleNext} />}
         {step === 2 && <LessonBuilder courseData={courseData} onBack={handleBack} />}
       </div>
@@ -623,6 +709,41 @@ const styles = {
   inputError: { borderColor: "#dc2626" },
   errMsg: { fontSize: 12, color: "#dc2626" },
   successMsg: { fontSize: 12, color: "#1f5c10", fontWeight: 600 },
+  warningMsg: {
+    fontSize: 12,
+    color: "#7c4a03",
+    background: "rgba(245, 158, 11, 0.14)",
+    border: "1px solid rgba(245, 158, 11, 0.24)",
+    borderRadius: 10,
+    padding: "10px 12px",
+    marginBottom: 16,
+  },
+  instructorCard: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    background: "rgba(255,255,255,0.4)",
+    border: "1px solid rgba(0, 0, 0, 0.12)",
+    borderRadius: 12,
+    padding: "14px 16px",
+    marginBottom: 20,
+  },
+  instructorAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: "50%",
+    background: "#1f5c10",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 13,
+    fontWeight: 700,
+    flexShrink: 0,
+  },
+  instructorLabel: { fontSize: 11, color: "#4a6830", textTransform: "uppercase", letterSpacing: ".6px", marginBottom: 4 },
+  instructorName: { fontSize: 15, fontWeight: 700, color: "#1a2e0f" },
+  instructorMeta: { fontSize: 12, color: "#4a6830" },
   footer: { display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24, alignItems: "center", flexWrap: "wrap" },
   btnNext: {
     background: "#1f5c10",

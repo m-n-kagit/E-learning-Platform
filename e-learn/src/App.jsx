@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useNavig
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "./components/Navbar";
-import CourseDetail from "./components/CourseDetail";
+import CourseDetail from "./components/Course/CourseDetail";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Explore from "./pages/Explore";
@@ -14,8 +14,8 @@ import Forget_Password from "./pages/Forget_Password";
 import CourseAdminDashboard from "./pages/CourseAdminDashboard";
 import GlobalAdminDashboard from "./pages/GlobalAdminDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import { ClipLoader } from "react-spinners";
 import "./styles.css";
+import { ClipLoader } from "react-spinners";
 
 
 
@@ -206,7 +206,7 @@ function CourseDetailModal() {
 
   return (
     <div
-      onClick={() => navigate(-1)}
+      onClick={() => navigate(-1)} 
       style={{
         position: "fixed",
         inset: 0,

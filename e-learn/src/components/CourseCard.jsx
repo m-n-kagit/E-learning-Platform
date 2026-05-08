@@ -1,21 +1,41 @@
+import { useSelector } from "react-redux";
+import devImage from "../images/1687.jpg";
+
 export default function CourseCard({ c, showBtn }) {
-  const courseName = c?.name || c?.title || "Untitled Course";
+  const courses = useSelector((state) => state.activeCourses.courses);
+  const courseId = String(c?._id || c?.id || "").trim();
+  const storedCourse = courseId
+    ? courses.find((course) => String(course?._id || course?.id || "").trim() === courseId)
+    : null;
+  const course = storedCourse ? { ...c, ...storedCourse } : c;
+
+  const courseName = course?.name || course?.title || "Untitled Course";
   const instructorName =
-    c?.instructorName ||
-    c?.instructor?.name ||
-    c?.instructor?.email ||
-    (typeof c?.instructor === "string" ? c.instructor : "Course Admin");
-  const category = c?.category || "General";
-  const accentColor = c?.color || "#5468ff";
-  const progress = Number(c?.progress || 0);
-  const completed = Number(c?.completed || 0);
-  const total = Number(c?.total || c?.lessons?.length || 0);
+    course?.instructorName ||
+    course?.instructor?.name ||
+    course?.instructor?.email ||
+    (typeof course?.instructor === "string" ? course.instructor : "Course Admin");
+  const category = course?.category || "General";
+  const accentColor = course?.color || "#5468ff";
+  const progress = Number(course?.progress || 0);
+  const completed = Number(course?.completed || 0);
+  const total = Number(course?.total || course?.lessons?.length || 0);
+  const thumbnail = course?.thumbnail || devImage;
 
   return (
     <div className="sd-ccard">
-      <div className="sd-ccard-thumb" style={{ background: `linear-gradient(135deg, ${accentColor}33, ${accentColor}11)` }}>
-        <span style={{ fontSize: 36 }}>Course</span>
-        <span className="sd-ccard-cat" style={{ background: accentColor }}>{category}</span>
+      <div
+        className="sd-ccard-thumb"
+        style={{ background: `linear-gradient(135deg, ${accentColor}33, ${accentColor}11)` }}
+      >
+        <img
+          src={thumbnail}
+          alt={courseName}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+        <span className="sd-ccard-cat" style={{ background: accentColor }}>
+          {category}
+        </span>
       </div>
       <div className="sd-ccard-body">
         <p className="sd-ccard-name">{courseName}</p>
@@ -24,8 +44,12 @@ export default function CourseCard({ c, showBtn }) {
           <div className="sd-pbar-fill" style={{ width: `${progress}%`, background: accentColor }} />
         </div>
         <div className="sd-ccard-foot">
-          <span className="sd-prog-inst">{completed}/{total} lessons · {progress}%</span>
-          {showBtn && <button className="sd-cont-btn" style={{ borderColor: accentColor, color: accentColor }}>Continue</button>}
+          <span className="sd-prog-inst">{completed}/{total} lessons   {progress}%</span>
+          {showBtn && (
+            <button className="sd-cont-btn" style={{ borderColor: accentColor, color: accentColor }}>
+              Continue
+            </button>
+          )}
         </div>
       </div>
     </div>

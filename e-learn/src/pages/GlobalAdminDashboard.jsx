@@ -641,6 +641,8 @@ function ViewProfile({ onBack }) {
   );
 }
 
+
+
 function EditProfile({ onBack }) {
   return (
     <div className="ga-page">

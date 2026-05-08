@@ -90,7 +90,7 @@ export default function Home() {
                   {getCourseStudentCount(course).toLocaleString("en-IN")} students
                 </span>
                 <button className="sd-avail-enroll" onClick={() => handleEnroll(course)}>
-                  Open Course
+                  View Details
                 </button>
               </div>
             </div>

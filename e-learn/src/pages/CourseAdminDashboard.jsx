@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
-import { setCourseAdmin, updateCourseAdmin } from "../features/course_admin_detailsSlice";
-import CourseUpload from "../components/Course_build";
+import { clearCourseAdmin, setCourseAdmin, updateCourseAdmin } from "../features/course_admin_details";
+import { setCourses } from "../features/activeCoursesSlice";
+import CourseUpload from "../components/Course/Course_build";
+import { ClipLoader } from "react-spinners";
+import devImage from "../images/1687.jpg";
 
 /* ─────────────────────────────────────────────
    MOCK DATA
@@ -63,44 +66,102 @@ const NAV_ITEMS = [
    ROOT
 ───────────────────────────────────────────── */
 const deriveInitials = (name = "") => {
-  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);//Boolean is used to filter out any empty strings that may result from extra spaces in the name. For example, if the name is "  John   Doe  ", after splitting by whitespace, we would get ["", "", "John", "", "", "Doe", "", ""]. The filter(Boolean) will remove all the empty strings, leaving us with ["John", "Doe"].
   if (!parts.length) return "";
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   return parts[0][0].toUpperCase();
+};
+
+const normalizeCourseAdminState = (admin = {}) => ({
+  ...admin,
+  initial: String(admin?.initial || admin?.initials || deriveInitials(admin?.name)).trim(),
+  initials: String(admin?.initials || admin?.initial || deriveInitials(admin?.name)).trim(),
+});
+
+const toDashboardCourse = (course = {}) => {
+  const students = Number(course.studentsCount || course.enrolledStudents?.length || 0);
+  const rating = Number(course.averageRating || 0);
+  const price = Number(course.price || 0);
+
+  return {
+    id: course._id || course.id,
+    _id: course._id || course.id,
+    name: course.name || course.title || "Untitled Course",
+    title: course.title || course.name || "Untitled Course",
+    thumbnail: course.thumbnail || "",
+    students,
+    rating: Number(rating.toFixed(1)),
+    revenue: price * students,
+    color: course.color || "#5468ff",
+    category: course.category || "General",
+    status: course.isPublished ? "Live" : "Draft",
+    lessonsCount: Array.isArray(course.lessons) ? course.lessons.length : 0,
+    price,
+  };
 };
 
 export default function CourseAdminDashboard() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const cAdmin = useSelector((state) => state.courseAdminDetails.c_admin);
+  const allCourses = useSelector((state) => state.activeCourses.courses);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("dashboard");
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [view, setView] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [coursesLoaded, setCoursesLoaded] = useState(false);
   const profileRef = useRef(null); //used to detect clicks outside profile dropdown
   const notifRef = useRef(null);
-  const currentAdmin = {
+  const instructorCourses = useMemo(() => {
+    if (!cAdmin?._id) return [];
+
+    return allCourses
+      .filter((course) => String(course?.instructor?._id || "") === String(cAdmin._id))
+      .map(toDashboardCourse);
+  }, [allCourses, cAdmin?._id]);
+  const currentAdmin = useMemo(() => ({
     ...ADMIN,
     ...cAdmin,
     name: cAdmin?.name || ADMIN.name,
     email: cAdmin?.email || ADMIN.email,
-    initials: cAdmin?.initial || cAdmin?.initials || deriveInitials(cAdmin?.name) || ADMIN.initials,
+    initial: cAdmin?.initial || cAdmin?.initials || deriveInitials(cAdmin?.name) || ADMIN.initials,
     bio: cAdmin?.bio || ADMIN.bio,
     location: cAdmin?.location || ADMIN.location,
     phone: cAdmin?.phone || ADMIN.phone,
     joinDate: cAdmin?.joinDate || ADMIN.joinDate,
-  };
+    coursesManaged: Array.isArray(cAdmin?.coursesManaged) ? cAdmin.coursesManaged : [],
+    courses: instructorCourses,
+    notifications: Array.isArray(cAdmin?.notifications) && cAdmin.notifications.length
+      ? cAdmin.notifications
+      : ADMIN.notifications,
+  }), [cAdmin, instructorCourses]);
 
   const getCourseAdminData = async () => {
     try {
       const response = await axios.get("/api/auth/me", { withCredentials: true });
       const adminData = response?.data?.data;
       if (adminData) {
-        dispatch(setCourseAdmin(adminData));
+        dispatch(setCourseAdmin(normalizeCourseAdminState(adminData)));
       }
     } catch (error) {
       console.error("Failed to fetch course admin data:", error);
+    }
+  };
+
+  const getInstructorCourses = async () => {
+    try {
+      const response = await axios.get("/api/courses/get-all-courses", { withCredentials: true });
+      const fetchedCourses = Array.isArray(response?.data?.data) ? response.data.data : [];
+      dispatch(setCourses(fetchedCourses));
+      dispatch(updateCourseAdmin({
+        coursesManaged: fetchedCourses.map((course) => course?._id).filter(Boolean),
+      }));
+    } catch (error) {
+      console.error("Failed to fetch instructor courses:", error);
+    } finally {
+      setCoursesLoaded(true);
     }
   };
 
@@ -127,7 +188,18 @@ export default function CourseAdminDashboard() {
     }
   }, [cAdmin?._id]);
 
+  useEffect(() => {
+    if (!cAdmin?._id || coursesLoaded) return;
+    getInstructorCourses();
+  }, [cAdmin?._id, coursesLoaded]);
+
   const go = (id) => { setActiveNav(id); setView(null); setSidebarOpen(false); };
+  const openCourseEdit = (course) => {
+    setSelectedCourse(course || null);
+    setActiveNav("course-edit");
+    setView(null);
+    setSidebarOpen(false);
+  };
   const adminNotifications = Array.isArray(currentAdmin?.notifications) ? currentAdmin.notifications : [];
   const unread = adminNotifications.filter((n) => !n.read).length;
 
@@ -138,6 +210,7 @@ export default function CourseAdminDashboard() {
       console.error("Logout failed:", error);
     } finally {
       localStorage.removeItem("hasSession");
+      dispatch(clearCourseAdmin());
       setProfileOpen(false);
       navigate("/login");
     }
@@ -149,14 +222,15 @@ export default function CourseAdminDashboard() {
     if (view === "income") return <MonthlyIncome onBack={() => setView(null)} admin={currentAdmin} />;
     if (view === "reviews") return <TeachingReviews onBack={() => setView(null)} admin={currentAdmin} />;
     switch (activeNav) {
-      case "dashboard":   return <DashboardHome setView={setView} go={go} admin={currentAdmin} />;
-      case "courses":     return <MyCourses admin={currentAdmin}/>;
+      case "dashboard":   return <DashboardHome setView={setView} go={go} admin={currentAdmin} coursesLoaded={coursesLoaded} onEditCourse={openCourseEdit} />;
+      case "courses":     return <MyCourses admin={currentAdmin} coursesLoaded={coursesLoaded} onEditCourse={openCourseEdit} />;
       case "course-upload":      return <CourseUpload />;
       
       case "performance": return <StudentPerformance admin={currentAdmin} />;
-      case "analysis":    return <CourseAnalysis admin={currentAdmin} />;
+      case "analysis":    return <CourseAnalysis admin={currentAdmin} onEditCourse={openCourseEdit} />;
       case "feedback":    return <Feedback admin={currentAdmin} />;
       case "transactions":return <Transactions admin={currentAdmin} />;
+      case "course-edit":   return <AdminCourseEdit course={selectedCourse || currentAdmin.courses[0]} onBack={() => go("courses")} />;
       default:            return <DashboardHome setView={setView} go={go} admin={currentAdmin} />;
     } //setView is used to switch on the profile dropdown options that require a different view than the main nav items
   };
@@ -185,7 +259,7 @@ export default function CourseAdminDashboard() {
             <span className="ca-ava sm">{currentAdmin.initials}</span>
             <div>
               <div className="ca-sb-uname">{currentAdmin.name}</div>
-              <div className="ca-sb-uemail">Course Instructor</div>
+              <div className="ca-sb-uemail">{currentAdmin.email || "Course Instructor"}</div>
             </div>
           </div>
         </div>
@@ -258,31 +332,47 @@ export default function CourseAdminDashboard() {
   );
 }
 
+function CenteredLoader({ minHeight = "240px" }) {
+  return (
+    <div
+      style={{
+        minHeight,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <ClipLoader size={48} color="#1f5c10" />
+    </div>
+  );
+}
+
 /* ─────────────────────────────────────────────
    PAGE COMPONENTS
 ───────────────────────────────────────────── */
-function DashboardHome({ setView, go, admin }) {
-  const courses = Array.isArray(admin?.courses) && admin.courses.length ? admin.courses : ADMIN.courses;
-  const totalStudents = courses.reduce((a, c) => a + c.students, 0);
-  const totalRevenue = courses.reduce((a, c) => a + c.revenue, 0);
-  const avgRating = (courses.reduce((a, c) => a + c.rating, 0) / courses.length).toFixed(1);
+function DashboardHome({ go, admin, coursesLoaded, onEditCourse }) {
+  const courses = Array.isArray(admin?.courses) ? admin.courses : [];
+  const totalStudents = courses.enrolledStudents ? courses.reduce((a, c) => a + c.enrolledStudents, 0) : 0 ;
+  const totalRevenue = totalStudents ? courses.reduce((a, c) => a + (c.price * (c.enrolledStudents || 0)), 0) : 0;
+  const avgRating = courses.averageRating !== undefined ? courses.length ? (courses.reduce((a, c) => a + c.averageRating, 0) / courses.length).toFixed(1) : 0 : 0;
 
   return (
     <div className="ca-page">
       <div className="ca-page-head">
         <div>
-          <h1>Instructor Dashboard <span className="acc">✦</span></h1>
+          <h1>Instructor Dashboard</h1>
           <p>Welcome back, {(admin?.name || ADMIN.name).split(" ")[0]}. Your courses are performing well.</p>
         </div>
         <button className="ca-cta-btn" onClick={() => go("course-upload")}>+ Upload Course</button>
       </div>
 
+
       <div className="ca-stat-row">
         {[
-          { icon: "▤", label: "Active Courses", value: courses.filter(c => c.status === "Live").length },
-          { icon: "◎", label: "Total Students", value: totalStudents.toLocaleString() },
+          { icon: "▤", label: "Active Courses", value: courses.filter((c) => c.status === "Live").length },
+          { icon: "👥", label: "Total Students", value: totalStudents.toLocaleString() },
           { icon: "★", label: "Avg Rating", value: avgRating },
-          { icon: "₹", label: "Total Earnings", value: `₹${(totalRevenue/100000).toFixed(1)}L` },
+          { icon: "₹", label: "Total Revenue", value: `₹${(totalRevenue / 1000).toFixed(1)}k` },
         ].map((s) => (
           <div key={s.label} className="ca-stat-card">
             <span className="ca-stat-ico">{s.icon}</span>
@@ -295,22 +385,185 @@ function DashboardHome({ setView, go, admin }) {
       {/* Income mini bar chart */}
 
       <h2 className="ca-sec-title" style={{ marginTop: 32 }}>Your Courses</h2>
-      <div className="ca-course-grid">
-        {courses.map((c) => <AdminCourseCard key={c.id} c={c} />)}
-      </div>
+      {!coursesLoaded ? (
+        <CenteredLoader />
+      ) : courses.length === 0 ? (
+        <div className="ca-empty-state">No active courses yet. Upload your first course to see it here.</div>
+      ) : (
+        <div className="ca-course-grid">
+          {courses.map((c) => (
+            <AdminCourseCard key={c.id} c={c} onEdit={() => onEditCourse?.(c)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function MyCourses({ admin }) {
-  const courses = admin?.courses || ADMIN.courses;
+function AdminCourseEdit({ course, onBack }) {
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    price: "",
+    category: "",
+  });
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!course) return;
+    setForm({
+      title: course.title || course.name || "",
+      description: course.description || course.summary || "",
+      price: Number.isFinite(course.price) ? String(course.price) : String(course.price || ""),
+      category: course.category || "",
+    });
+    setThumbnailPreview(course.thumbnail || "");
+    setThumbnailFile(null);
+    setPreviewFile(null);
+  }, [course]);
+
+  useEffect(() => {
+    if (!thumbnailFile) return undefined;
+    const objectUrl = URL.createObjectURL(thumbnailFile);
+    setThumbnailPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [thumbnailFile]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveChanges = async () => {
+    if (!course?._id) return;
+    const payload = new FormData();
+    payload.append("courseId", course._id);
+    payload.append("title", form.title.trim());
+    payload.append("description", form.description.trim());
+    payload.append("price", form.price);
+    payload.append("category", form.category.trim());
+    if (thumbnailFile) payload.append("thumbnail", thumbnailFile);
+    if (previewFile) payload.append("previewVideo", previewFile);
+
+    try {
+      setSaving(true);
+      await axios.patch("/api/courses/update-course", payload, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      alert("Changes saved successfully");
+      onBack();
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      alert("Failed to save changes");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!course) {
+    return (
+      <section className="ca-page">
+        <button className="ca-back" onClick={onBack}>Back to Dashboard</button>
+        <div className="ca-empty-state">Course details are not available.</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="ca-page">
+      <button className="ca-back" onClick={onBack}>Back to Dashboard</button>
+      <h1 className="ca-h1">Edit Course</h1>
+      <div className="ca-edit-wrap" style={{ alignItems: "flex-start" }}>
+        <div className="ca-edit-ava-col" style={{ minWidth: 220 }}>
+          <div className="ca-ccard" style={{ width: 220, overflow: "hidden" }}>
+            <div className="ca-ccard-top" style={{ height: 160 }}>
+              <img
+                src={thumbnailPreview || devImage}
+                alt={form.title || "Course thumbnail"}
+                className="ca-ccard-image"
+              />
+            </div>
+          </div>
+          <label className="ca-upload-photo-btn" htmlFor="course-thumb">
+            Change Thumbnail
+          </label>
+          <input
+            id="course-thumb"
+            type="file"
+            accept="image/*"
+            onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
+            style={{ display: "none" }}
+          />
+        </div>
+
+        <div className="ca-edit-form" style={{ minWidth: 300 }}>
+          <div className="ca-form-grid">
+            <div className="ca-fgroup">
+              <label>Course Title</label>
+              <input name="title" type="text" value={form.title} onChange={handleChange} />
+            </div>
+            <div className="ca-fgroup">
+              <label>Category</label>
+              <input name="category" type="text" value={form.category} onChange={handleChange} />
+            </div>
+            <div className="ca-fgroup">
+              <label>Price (INR)</label>
+              <input name="price" type="number" min="0" value={form.price} onChange={handleChange} />
+            </div>
+            <div className="ca-fgroup">
+              <label>Preview Video</label>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(e) => setPreviewFile(e.target.files?.[0] || null)}
+              />
+              {course.previewVideo && (
+                <span style={{ fontSize: 12, color: "#666" }}>Current: {course.previewVideo}</span>
+              )}
+            </div>
+          </div>
+          <div className="ca-fgroup">
+            <label>Description</label>
+            <textarea
+              name="description"
+              rows={5}
+              value={form.description}
+              onChange={handleChange}
+            />
+          </div>
+          <div className="ca-form-actions">
+            <button className="ca-btn-cancel" type="button" onClick={onBack}>Cancel</button>
+            <button className="ca-btn-save" type="button" onClick={handleSaveChanges} disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MyCourses({ admin, coursesLoaded, onEditCourse }) {
+  const courses = Array.isArray(admin?.courses) ? admin.courses : [];
 
   return (
     <div className="ca-page">
       <h1 className="ca-h1">My Courses</h1>
-      <div className="ca-course-grid">
-        {courses.map((c) => <AdminCourseCard key={c.id} c={c} showActions />)}
-      </div>
+      {!coursesLoaded ? (
+        <CenteredLoader />
+      ) : courses.length === 0 ? (
+        <div className="ca-empty-state">You have not created any courses yet.</div>
+      ) : (
+        <div className="ca-course-grid">
+          {courses.map((c) => (
+            <AdminCourseCard key={c.id} c={c} showActions onEdit={() => onEditCourse?.(c)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -351,8 +604,8 @@ function StudentPerformance({ admin }) {
   );
 }
 
-function CourseAnalysis({ admin }) {
-  const courses = Array.isArray(admin?.courses) && admin.courses.length ? admin.courses : ADMIN.courses;
+function CourseAnalysis({ admin, onEditCourse }) {
+  const courses = Array.isArray(admin?.courses) ? admin.courses : [];
 
   return (
     <div className="ca-page">
@@ -379,7 +632,7 @@ function CourseAnalysis({ admin }) {
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-              <button className="ca-action-btn" style={{ flex: 1 }}>Edit Course</button>
+              <button className="ca-action-btn" style={{ flex: 1 }} onClick={() => onEditCourse?.(c)}>Edit Course</button>
               <button className="ca-action-btn red">Delete</button>
             </div>
           </div>
@@ -393,6 +646,20 @@ function CourseAnalysis({ admin }) {
     </div>
   );
 }
+// function CheckStatus({admin,courseId}) {
+//   const courses = Array.isArray(admin?.courses) ? admin.courses : [];
+//   const course = courses.find((c) => String(c.id) === String(courseId));
+//   if (!course) return null;
+//   return (
+//     <div className="ca-status-card" style={{ borderLeft: `4px solid ${course.color}` }}>
+//       <div>
+//         <p className="ca-bold">{course.name}</p>
+//         <span className="ca-tag" style={{ background: course.color + "22", color: course.color }}>{course.category}</span>
+//       </div>
+//     </div>
+//   )
+
+// }
 
 function Feedback({ admin }) {
   const reviews = Array.isArray(admin?.reviews) && admin.reviews.length ? admin.reviews : ADMIN.reviews;
@@ -420,7 +687,7 @@ function Feedback({ admin }) {
 }
 
 function Transactions({ admin }) {
-  const courses = Array.isArray(admin?.courses) && admin.courses.length ? admin.courses : ADMIN.courses;
+  const courses = Array.isArray(admin?.courses) ? admin.courses : [];
   const txns = [
     { id: "TXN-401", date: "Mar 22, 2024", course: "Full-Stack Web Dev Bootcamp", students: 3, amount: "₹14,997", status: "Paid" },
     { id: "TXN-402", date: "Mar 15, 2024", course: "Node.js Masterclass", students: 5, amount: "₹19,995", status: "Paid" },
@@ -453,9 +720,9 @@ function Transactions({ admin }) {
 }
 
 /* ─── Profile Views ─── */
-function ViewProfile({ onBack, admin }) {
-  const profile = admin || ADMIN;
-  const courses = Array.isArray(profile.courses) && profile.courses.length ? profile.courses : ADMIN.courses;
+function ViewProfile({ onBack, admin }) { //onBack is used to return to the previous view (dashboard home) when viewing profile details
+  const profile = admin ;
+  const courses = Array.isArray(profile.courses) ? profile.courses : [];
   const totalStudents = courses.reduce((a, c) => a + c.students, 0);
   const avgRating = (courses.reduce((a, c) => a + c.rating, 0) / Math.max(courses.length, 1)).toFixed(1);
   const totalRevenue = courses.reduce((a, c) => a + c.revenue, 0);
@@ -473,9 +740,9 @@ function ViewProfile({ onBack, admin }) {
       <div className="ca-vp-body">
         <div>
           <h1 className="ca-vp-name">{profile.name || ADMIN.name}</h1>
-          <p className="ca-vp-bio">{profile.bio || ADMIN.bio}</p>
+          <p className="ca-vp-bio">{profile.bio }</p>
           <div className="ca-vp-meta">
-            <span>Location {profile.location || ADMIN.location}</span>
+            <span>Location {profile.location || ""}</span>
             <span>Joined {profile.joinDate || ADMIN.joinDate}</span>
             <span>Email {profile.email || ADMIN.email}</span>
           </div>
@@ -502,7 +769,7 @@ function MonthlyIncome({ onBack , admin  }) {
   const monthlyIncome = Array.isArray(profile?.monthlyIncome) && profile.monthlyIncome.length
     ? profile.monthlyIncome
     : ADMIN.monthlyIncome;
-  const courses = Array.isArray(profile?.courses) && profile.courses.length ? profile.courses : ADMIN.courses;
+  const courses = Array.isArray(profile?.courses) ? profile.courses : [];
   const max = Math.max(...monthlyIncome.map((m) => m.amount));
   const totalRevenue = courses.reduce((a, x) => a + x.revenue, 0) || 1;
   return (
@@ -604,7 +871,7 @@ function EditProfile({ onBack, admin }) {
       email: admin?.email || ADMIN.email,
       phone: admin?.phone || ADMIN.phone,
       location: admin?.location || ADMIN.location,
-      bio: admin?.bio || ADMIN.bio,
+      bio: admin?.bio || "",
     });
   }, [admin]);
 
@@ -671,17 +938,18 @@ function EditProfile({ onBack, admin }) {
           </div>
           <div className="ca-form-actions">
             <button className="ca-btn-cancel" type="button" onClick={onBack}>Cancel</button>
-            <button className="ca-btn-save" type="submit">Save Changes</button>
+            <button className="ca-btn-save" type="submit" onClick={handleSave}>Save Changes</button>
           </div>
         </form>
       </div>
     </div>
   );
 }
-function AdminCourseCard({ c, showActions }) {
+function AdminCourseCardLegacy({ c, showActions }) {
   return (
     <div className="ca-ccard">
       <div className="ca-ccard-thumb" style={{ background: `linear-gradient(135deg, ${c.color}33, ${c.color}11)` }}>
+        <span className={`ca-ccard-status ${c.status === "Published" ? "ca-tag green" : "ca-tag orange"}`}>{c.status}</span>
         <span style={{ fontSize: 36 }}>📖</span>
       </div>
       <div className="ca-ccard-body">
@@ -690,7 +958,10 @@ function AdminCourseCard({ c, showActions }) {
           <span>👥 {c.students.toLocaleString()}</span>
           <span>⭐ {c.rating}</span>
           <span>₹{(c.revenue / 1000).toFixed(0)}k</span>
-          <button className="ca-action-btn"> Check<em> Status</em> </button>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 12, color: "#666" }}>
+          <span>{c.lessonsCount} lesson{c.lessonsCount === 1 ? "" : "s"}</span>
+          <button className="ca-action-btn">Check Status</button>
         </div>
         {showActions && (
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -703,19 +974,54 @@ function AdminCourseCard({ c, showActions }) {
   );
 }
 
+function AdminCourseCard({ c, showActions, onEdit }) {
+  const thumbnail = c.thumbnail || devImage;
+  const revenueLabel = c.enrolledStudents ? `₹${(c.enrolledStudents * c.price / 1000).toFixed(0)}k`: `₹0`;
+  const onDelete = () => {
+    // Implementation for delete action
+  };
+  return (
+    <div className="ca-ccard">
+      <div className="ca-ccard-top">
+        <img src={thumbnail} alt={c.name} className="ca-ccard-image" />
+      </div>
+      <div className="ca-ccard-body">
+        <div className="ca-ccard-cat">{c.category}</div>
+        <p className="ca-ccard-name">{c.name}</p>
+        <div className="ca-ccard-stats">
+          <span>{c.enrolledStudents?.toLocaleString() || 0} students</span>
+          <span>{c.lessonsCount} lesson{c.lessonsCount === 1 ? "" : "s"}</span>
+        </div>
+        <div className="ca-ccard-meta">
+          <span>Rating {c.averageRating?.toFixed(1) || 0}</span>
+          <span>Revenue {revenueLabel}</span>
+        </div>
+        <div className="ca-ccard-foot">
+          
+            <div className="ca-ccard-actions">
+              <button className="ca-action-btn ca-action-btn-grow" onClick={() => onEdit?.()}>Edit</button>
+              <button className="ca-action-btn red" onClick={onDelete}>Delete</button>
+            </div>
+          
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminProgCard({ c }) {
   return (
     <div className="ca-prog-card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <p className="ca-bold" style={{ margin: 0 }}>{c.name}</p>
-        <span className="ca-txn-amt">₹{(c.revenue / 1000).toFixed(0)}k</span>
+        <span className="ca-txn-amt">₹{(c.enrolledStudents * c.price / 1000).toFixed(0)}k</span>
       </div>
       <div className="ca-pbar">
-        <div className="ca-pbar-fill" style={{ width: Math.min((c.students / 1500) * 100, 100) + "%", background: c.color }} />
+        <div className="ca-pbar-fill" style={{ width: Math.min((c.enrolledStudents / 1500) * 100, 100) + "%", background: c.color }} />
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12, color: "#666" }}>
-        <span>{c.students} students</span>
-        <span>⭐ {c.rating}</span>
+        <span>{c.enrolledStudents?.toLocaleString() || 0} students</span>
+        <span>⭐ {c.averageRating?.toFixed(1) || 0}</span>
       </div>
     </div>
   );
@@ -801,20 +1107,34 @@ const STYLES = `
 
 .ca-income-chart { display:flex; align-items:flex-end; gap:12px; height:160px; background:#161626; border:1px solid #ffffff08; border-radius:14px; padding:20px; }
 .ca-income-chart.large { height:220px; }
+.ca-empty-state { padding:24px; border:1px dashed #ffffff18; border-radius:14px; color:#666; background:#161626; }
 .ca-bar-col { display:flex; flex-direction:column; align-items:center; flex:1; height:100%; gap:6px; }
 .ca-bar-val { font-size:10px; color:#888; }
 .ca-bar-wrap { flex:1; width:100%; background:#ffffff08; border-radius:6px; overflow:hidden; display:flex; align-items:flex-end; }
 .ca-bar-fill { width:100%; background:linear-gradient(to top,#f97316,#fb923c); border-radius:6px 6px 0 0; transition:height .5s ease; }
 .ca-bar-lbl { font-size:11px; color:#666; }
 
-.ca-course-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:20px; }
-.ca-ccard { background:#161626; border:1px solid #ffffff08; border-radius:16px; overflow:hidden; transition:transform .2s; }
-.ca-ccard:hover { transform:translateY(-3px); }
-.ca-ccard-thumb { height:130px; display:flex; align-items:center; justify-content:center; position:relative; }
-.ca-ccard-status { position:absolute; top:10px; right:10px; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; }
+.ca-course-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:20px; }
+.ca-ccard { background:#161626; border:1px solid #ffffff08; border-radius:10px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.08); transition:transform .2s, background-color .2s, border-color .2s; }
+.ca-ccard:hover { transform:translateY(-3px); background:var(--card-hover); border-color:rgba(0,0,0,0.18); }
+.ca-ccard:hover .ca-ccard-name,
+.ca-ccard:hover .ca-ccard-meta,
+.ca-ccard:hover .ca-ccard-meta span { color:#fff; }
+.ca-ccard:hover .ca-ccard-stats { color:rgba(255,255,255,0.82); }
+.ca-ccard:hover .ca-ccard-cat { color:rgba(255,255,255,0.88); }
+.ca-ccard-top { position:relative; height:155px; background:linear-gradient(135deg, #f9731622, #f973160a); display:flex; align-items:center; justify-content:center; }
+.ca-ccard-image { width:100%; height:100%; display:contain; display:block; }
+.ca-ccard-status { position:absolute; top:10px; right:10px; font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px; }
 .ca-ccard-body { padding:16px; }
-.ca-ccard-name { font-size:14px; font-weight:600; margin:0 0 10px; line-height:1.4; }
-.ca-ccard-stats { display:flex; gap:14px; font-size:12px; color:#888; }
+.ca-ccard-cat { margin:0 0 8px; color:#f97316; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.ca-ccard-name { font-size:15px; font-weight:700; margin:0 0 10px; line-height:1.4; text-align:center; }
+.ca-ccard-stats { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; color:#888; }
+.ca-ccard-meta { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:10px; font-size:12px; color:#666; }
+.ca-ccard-meta span { flex:1; }
+.ca-ccard-meta span:last-child { text-align:right; }
+.ca-ccard-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; }
+.ca-ccard-actions { display:flex; gap:8px; }
+.ca-action-btn-grow { flex:1; }
 .ca-bold { font-weight:600; color:#e2e2f0; }
 
 .ca-pbar { background:#ffffff0a; border-radius:4px; height:6px; overflow:hidden; }
@@ -834,7 +1154,7 @@ const STYLES = `
 .ca-tag.orange { background:#f9731622; color:#f97316; }
 .ca-tag.red { background:#ff5f5f22; color:#ff5f5f; }
 .ca-action-btn { background:none; border:1px solid #ffffff15; color:#ccc; font-family:inherit; font-size:12px; padding:5px 12px; border-radius:8px; cursor:pointer; transition:all .2s; }
-.ca-action-btn:hover { background:#ffffff08; color:#ffffff15; }
+.ca-action-btn:hover { background:var(--accent-glow); border-color:rgba(31,92,16,0.3); color:var(--accent); }
 .ca-action-btn.red { border-color:#ff5f5f33; color:#ff5f5f; }
 .ca-action-btn.red:hover { background:#ff5f5f11; }
 

@@ -18,7 +18,8 @@ export default function useAvailablePublicCourses() {
         setStatus("loading");
         setError("");
         const response = await axios.get("/api/courses/available", {
-          withCredentials: true,
+          withCredentials: true, //no priror cookies needed for this endpoint,
+          //  but in case we want to use session-based auth in the future, we can keep this here
         });
         const fetchedCourses = Array.isArray(response?.data?.data) ? response.data.data : [];
         if (ignore) return;
@@ -41,7 +42,7 @@ export default function useAvailablePublicCourses() {
 
   const publicCourses = useMemo(
     () => getPublishedPublicCourses(courses),
-    [courses]
+    [courses] //Array of courses and each course contains json data of course details, including title, description, level, etc.
   );
 
   return {

@@ -90,10 +90,13 @@ export default function CourseDetail({ course: courseProp }) {
   return (
     <section className="course-detail">
       <div className="course-detail-video-wrap">
-        <video className="course-detail-video" controls poster={thumbnail || undefined}>
+        <video className="course-detail-video " controls poster={thumbnail || undefined}>
           <source src={sampleVideoUrl} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
+        <div className="course-detail-item course-detail-item-action">
+            <button className="course-detail-enroll-btn">Enroll Now</button>
+          </div>
       </div>
 
       <div className="course-detail-body">
@@ -145,6 +148,7 @@ export default function CourseDetail({ course: courseProp }) {
             <span className="course-detail-label">Updated On</span>
             <span className="course-detail-value">{updatedAt}</span>
           </div>
+          
         </div>
       </div>
     </section>

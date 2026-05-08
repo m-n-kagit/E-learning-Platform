@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
-import { enrollStudent, selectCourse, setCourses } from "../features/activeCoursesSlice";
-import devImage from "../images/1687.jpg";
-
+import { enrollStudent, selectCourse } from "../../features/activeCoursesSlice";
+import useAvailablePublicCourses from "../../hooks/useAvailablePublicCourses";
+import devImage from "../../images/1687.jpg";
+import axios from "axios";
 const resolveInstructorName = (instructor) => {
   if (!instructor) return "Course Admin";
   if (typeof instructor === "string") return instructor;
@@ -17,52 +17,38 @@ const formatLevel = (level) => {
   return normalizedLevel.charAt(0).toUpperCase() + normalizedLevel.slice(1);
 };
 
-export default function CoursesAvailable() {
+export default function CoursesAvailable({
+  title = "Courses Available",
+  showTitle = true,
+  wrapperClassName = "sd-page",
+}) { 
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const student = useSelector((state) => state.studentDetails.student);
-  const { courses, selectedCourseId } = useSelector((state) => state.activeCourses);
+  const { selectedCourseId } = useSelector((state) => state.activeCourses);
+  const { publicCourses, status, error } = useAvailablePublicCourses();
   const [queryDraft, setQueryDraft] = useState("");
   const [query, setQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [category, setCategory] = useState("All");
   const [level, setLevel] = useState("All");
-  const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
 
-  useEffect(() => {
-    let ignore = false;
-
+  const findAvailableCourse = useMemo(()=>{ 
+    // for searching the coourses from the database
     const fetchCourses = async () => {
-      try {
-        setStatus("loading");
-        setError("");
-        const response = await axios.get("/api/courses/available", {
-          withCredentials: true,
-        });
-        const fetchedCourses = Array.isArray(response?.data?.data) ? response.data.data : [];
-        if (ignore) return;
-        dispatch(setCourses(fetchedCourses));
-        setStatus("success");
-      } catch (fetchError) {
-        if (ignore) return;
-        console.error("Failed to fetch available courses:", fetchError);
-        setError(fetchError?.response?.data?.message || "Unable to load available courses right now.");
-        setStatus("error");
+      try{
+        const response = await axios.get("/api/courses");
       }
-    };
+      catch(error){
+        console.error("Error fetching courses:", error);
+      }
 
-    fetchCourses();
-
-    return () => {
-      ignore = true;
-    };
-  }, [dispatch]);
-
-  const availableCourses = useMemo( //useMemo 
-    () => courses.filter((course) => course.isPublished),
-    [courses]
+  }},[])
+  const availableCourses = useMemo( //useMemo is a React hook that allows you to optimize the performance of your components by memoizing the result of a function.
+  // Memoising means that React will remember the result of the function and only recompute it when its dependencies change. 
+    () => publicCourses.filter((course) => course.isPublished),
+    [publicCourses]
   );
 
   const categories = useMemo(
@@ -99,6 +85,15 @@ export default function CoursesAvailable() {
   }, [availableCourses, category, level, query]);
 
   const handleSearch = () => setQuery(queryDraft);
+  const hasActiveFilters = Boolean(query.trim() || category !== "All" || level !== "All");
+
+  const handleResetFilters = () => {
+    setQueryDraft("");
+    setQuery("");
+    setCategory("All");
+    setLevel("All");
+    setShowFilters(false);
+  };
 
   const handleOpenCourse = (course) => {
     const studentId = student?._id || "local-student";
@@ -111,8 +106,8 @@ export default function CoursesAvailable() {
   };
 
   return (
-    <div className="sd-page">
-      <h1 className="sd-h1">Courses Available</h1>
+    <div className={wrapperClassName || undefined}>
+      {showTitle && <h1 className="sd-h1">{title}</h1>}
 
       <div className="sd-avail-search-wrap">
         <input
@@ -166,10 +161,23 @@ export default function CoursesAvailable() {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            className="sd-avail-reset-btn"
+            onClick={handleResetFilters}
+            disabled={!hasActiveFilters}
+          >
+            Reset
+          </button>
         </div>
       )}
 
       <div className="sd-avail-results">
+        {status === "success" && !error && (
+          <p className="sd-avail-meta">
+            Showing {filteredCourses.length} of {availableCourses.length} courses
+          </p>
+        )}
         {status === "loading" && (
           <p className="sd-avail-empty">Loading available courses...</p>
         )}
@@ -183,7 +191,7 @@ export default function CoursesAvailable() {
         <div className="sd-avail-grid">
           {filteredCourses.map((course) => {
             const levelLabel = formatLevel(course.level);
-            const studentsLabel = Number(course.studentsCount || course.enrolledStudents?.length || 0).toLocaleString("en-IN");
+            const studentsLabel = Number( course.enrolledStudents?.length || 0).toLocaleString("en-IN");
             const thumbnail = course.thumbnail || devImage;
             const instructorName = resolveInstructorName(course.instructor);
             const lessonsCount = Array.isArray(course.lessons) ? course.lessons.length : 0;
@@ -204,7 +212,7 @@ export default function CoursesAvailable() {
                     {studentsLabel} students · {lessonsCount} lessons
                   </span>
                   <button className="sd-avail-enroll" onClick={() => handleOpenCourse(course)}>
-                    {selectedCourseId === String(course._id) ? "View Details" : "Open Course"}
+                     View Details 
                   </button>
                 </div>
               </div>

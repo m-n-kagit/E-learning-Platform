@@ -42,7 +42,7 @@ const courseAdminDetailsSlice = createSlice({
         },
         clearCourseAdmin(state) {
             state.c_admin = emptyC_Admin;
-        }
+        },
 
     }
 })
