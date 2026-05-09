@@ -1,4 +1,6 @@
 import mongoose from "mongoose";
+import fs from "fs/promises";
+import path from "path";
 import Instructor from "../models/Instructor.models.js";
 import Course from "../models/Course.models.js";
 import Lesson from "../models/Lesson.models.js";
@@ -26,6 +28,38 @@ const parseLessonsInput = (lessonsInput) => {
 const getUploadedFiles = (req, fieldName) => {
     const files = req.files?.[fieldName];
     return Array.isArray(files) ? files : [];
+};
+
+const cleanupUploadedFiles = async (req) => {
+    const filePaths = [];
+
+    if (req.file?.path) {
+        filePaths.push(req.file.path);
+    }
+
+    if (req.files) {
+        Object.values(req.files).forEach((files) => {
+            if (!Array.isArray(files)) return;
+            files.forEach((file) => {
+                if (file?.path) filePaths.push(file.path);
+            });
+        });
+    }
+
+    if (filePaths.length === 0) return;
+
+    await Promise.all(
+        filePaths.map(async (filePath) => {
+            const normalizedPath = path.normalize(filePath);
+            try {
+                await fs.rm(normalizedPath, { force: true, maxRetries: 2, retryDelay: 50 });
+            } catch (error) {
+                if (error?.code !== "ENOENT") {
+                    console.error("Failed to delete temporary upload:", error);
+                }
+            }
+        })
+    );
 };
 
 const uploadThumbnailIfPresent = async (req) => {
@@ -174,6 +208,8 @@ const uploadContent  = async (req,res,next)=>{
             res.status(error.statusCode);
         }
         next(error);
+    } finally {
+        await cleanupUploadedFiles(req);
     }
 }
 
@@ -204,10 +240,15 @@ const getAllCourses = async (req,res,next)=>{ // courses for course admin and in
 }
 
 const  updateCourse = async (req,res,next)=>{
-    const {_id} = req.body;
+    const courseId = req.body.courseId || req.body._id;
     const courseData = { ...req.body };
     try{
-        const existingCourse = await Course.findById(_id);
+        if (!mongoose.isValidObjectId(courseId)) {
+            res.status(400);
+            throw new Error("Invalid courseId");
+        }
+
+        const existingCourse = await Course.findById(courseId);
         if(!existingCourse){
             res.status(404);
             throw new Error("Course not found");
@@ -224,7 +265,23 @@ const  updateCourse = async (req,res,next)=>{
             courseData.thumbnailPublicId = thumbnailUpload.thumbnailPublicId;
         }
 
-        const updatedCourse = await Course.findByIdAndUpdate(_id, courseData, {new: true})
+        const [overviewVideoFile] = getUploadedFiles(req, "overviewVideo");
+        if (overviewVideoFile?.path) {
+            const uploadedOverviewVideo = await uploadCloudinary(overviewVideoFile.path, {
+                resource_type: "video",
+                folder: "course-overview-videos"
+            });
+
+            if (!uploadedOverviewVideo?.secure_url) {
+                res.status(500);
+                throw new Error("Unable to upload course overview video right now");
+            }
+
+            courseData.overview_video = uploadedOverviewVideo.secure_url;
+            courseData.overview_videoPublicId = uploadedOverviewVideo.public_id || "";
+        }
+
+        const updatedCourse = await Course.findByIdAndUpdate(courseId, courseData, {new: true})
             .populate("instructor", "name email")
             .populate("lessons");
         if(!updatedCourse){
@@ -237,6 +294,8 @@ const  updateCourse = async (req,res,next)=>{
         })}
     catch(error){
         next(error);
+    } finally {
+        await cleanupUploadedFiles(req);
     }
 }
 
@@ -280,9 +339,14 @@ const addLesson = async (req,res,next)=>{
             ? Number(order)
             : course.lessons.length + 1;
 
-        let uploadedVideo = null;
         const [lessonVideoFile] = getUploadedFiles(req, "lessonVideo");
-        if (lessonVideoFile?.path) {
+        const [lessonDocumentFile] = getUploadedFiles(req, "lessonDocument");
+        const isVideoFile = (file) => file?.mimetype?.startsWith("video/");
+
+        let uploadedVideo = null;
+        let uploadedDocument = null;
+
+        if (lessonVideoFile?.path && isVideoFile(lessonVideoFile)) {
             uploadedVideo = await uploadCloudinary(lessonVideoFile.path, {
                 resource_type: "video",
                 folder: "course-lessons"
@@ -294,6 +358,27 @@ const addLesson = async (req,res,next)=>{
             }
         }
 
+        if (lessonDocumentFile?.path || (lessonVideoFile?.path && !isVideoFile(lessonVideoFile))) {
+            const documentFile = lessonDocumentFile?.path ? lessonDocumentFile : lessonVideoFile;
+            uploadedDocument = await uploadCloudinary(documentFile.path, {
+                resource_type: "raw",
+                folder: "course-lesson-documents"
+            });
+
+            if (!uploadedDocument?.secure_url) {
+                res.status(500);
+                throw new Error("Unable to upload lesson document right now");
+            }
+        }
+
+        const normalizedResources = Array.isArray(resources) ? [...resources] : [];
+        if (uploadedDocument?.secure_url) {
+            normalizedResources.push({
+                title: lessonDocumentFile?.originalname || lessonVideoFile?.originalname || "Lesson document",
+                fileUrl: uploadedDocument.secure_url
+            });
+        }
+
         const lesson = await Lesson.create({
             title: resolvedTitle,
             description,
@@ -303,7 +388,7 @@ const addLesson = async (req,res,next)=>{
             duration: Number(duration) || 0,
             order: resolvedOrder,
             isPreview: Boolean(isPreview),
-            resources: Array.isArray(resources) ? resources : []
+            resources: normalizedResources
         });
 
         course.lessons.push(lesson._id);
@@ -329,6 +414,8 @@ const addLesson = async (req,res,next)=>{
         })}
     catch(error){
         next(error);
+    } finally {
+        await cleanupUploadedFiles(req);
     }
 }
 
@@ -371,4 +458,115 @@ const removeLesson = async (req,res,next)=>{
 }
 
 
-export {uploadContent, getAllCourses, updateCourse, addLesson, removeLesson}
+const updateLesson = async (req, res, next) => {
+    const {
+        courseId,
+        lessonId,
+        title,
+        lessonName,
+        description,
+        order,
+        isPreview,
+    } = req.body;
+
+    try {
+        if (!mongoose.isValidObjectId(courseId) || !mongoose.isValidObjectId(lessonId)) {
+            res.status(400);
+            throw new Error("Invalid courseId or lessonId");
+        }
+
+        const course = await Course.findById(courseId);
+        if (!course) {
+            res.status(404);
+            throw new Error("Course not found");
+        }
+
+        if (req.user.role !== "admin" && course.instructor.toString() !== req.user._id.toString()) {
+            res.status(403);
+            throw new Error("You do not have permission to update lessons for this course");
+        }
+
+        const lesson = await Lesson.findById(lessonId);
+        if (!lesson || String(lesson.course) !== String(courseId)) {
+            res.status(404);
+            throw new Error("Lesson not found in course");
+        }
+
+        const resolvedTitle = String(title || lessonName || lesson.title || "").trim();
+        if (!resolvedTitle) {
+            res.status(400);
+            throw new Error("Lesson title is required");
+        }
+
+        lesson.title = resolvedTitle;
+        if (typeof description !== "undefined") {
+            lesson.description = String(description || "");
+        }
+        if (Number.isFinite(Number(order))) {
+            lesson.order = Number(order);
+        }
+        if (typeof isPreview !== "undefined") {
+            lesson.isPreview = String(isPreview).toLowerCase() === "true" || Boolean(isPreview);
+        }
+
+        const [lessonVideoFile] = getUploadedFiles(req, "lessonVideo");
+        const [lessonDocumentFile] = getUploadedFiles(req, "lessonDocument");
+        const isVideoFile = (file) => file?.mimetype?.startsWith("video/");
+
+        let uploadedVideo = null;
+        let uploadedDocument = null;
+
+        if (lessonVideoFile?.path && isVideoFile(lessonVideoFile)) {
+            uploadedVideo = await uploadCloudinary(lessonVideoFile.path, {
+                resource_type: "video",
+                folder: "course-lessons"
+            });
+
+            if (!uploadedVideo?.secure_url) {
+                res.status(500);
+                throw new Error("Unable to upload lesson video right now");
+            }
+        }
+
+        if (lessonDocumentFile?.path || (lessonVideoFile?.path && !isVideoFile(lessonVideoFile))) {
+            const documentFile = lessonDocumentFile?.path ? lessonDocumentFile : lessonVideoFile;
+            uploadedDocument = await uploadCloudinary(documentFile.path, {
+                resource_type: "raw",
+                folder: "course-lesson-documents"
+            });
+
+            if (!uploadedDocument?.secure_url) {
+                res.status(500);
+                throw new Error("Unable to upload lesson document right now");
+            }
+        }
+
+        if (uploadedVideo?.secure_url) {
+            lesson.videoUrl = uploadedVideo.secure_url;
+            lesson.videoPublicId = uploadedVideo.public_id || "";
+        }
+
+        if (uploadedDocument?.secure_url) {
+            lesson.resources = [
+                {
+                    title: lessonDocumentFile?.originalname || lessonVideoFile?.originalname || "Lesson document",
+                    fileUrl: uploadedDocument.secure_url,
+                },
+            ];
+        }
+
+        await lesson.save();
+
+        res.status(200).json({
+            success: true,
+            data: lesson,
+        });
+    } catch (error) {
+        next(error);
+    } finally {
+        await cleanupUploadedFiles(req);
+    }
+};
+
+
+export {uploadContent, getAllCourses, updateCourse, addLesson, removeLesson, updateLesson}

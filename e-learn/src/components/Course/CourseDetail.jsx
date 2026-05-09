@@ -1,7 +1,9 @@
 import "./CourseDetail.css";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import { useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
-
+import ReactPlayer from "react-player";
 const sampleCourse = {
   title: "Full Stack Web Development",
   description:
@@ -57,6 +59,11 @@ function getRatingsCount(ratings) {
   return Array.isArray(ratings) ? ratings.length : 0;
 }
 
+function normalizeVideoUrl(value) {
+  const resolved = String(value || "").trim();
+  if (!resolved || resolved === "null" || resolved === "undefined") return "";
+  return resolved;
+}
 export default function CourseDetail({ course: courseProp }) {
   const { courseId } = useParams();//useParams returns an object of 
   // key-value pairs of URL parameters. 
@@ -69,7 +76,34 @@ export default function CourseDetail({ course: courseProp }) {
     ? courses.find((item) => String(item._id) === normalizedRouteCourseId) || null
     : null;
   const courseFromStore = courses.find((item) => item._id === selectedCourseId) || null;
-  const course = courseProp || courseFromRoute || courseFromStore || sampleCourse;
+  const [fetchedCourse, setFetchedCourse] = useState(null);
+  const [fetchError, setFetchError] = useState("");
+
+  useEffect(() => {
+    if (!normalizedRouteCourseId) return;
+    if (courseProp || courseFromRoute || courseFromStore) return;
+
+    let isMounted = true;
+    const fetchCourse = async () => {
+      try {
+        setFetchError("");
+        const response = await axios.get(`/api/courses/available/${normalizedRouteCourseId}`);
+        if (!isMounted) return;
+        setFetchedCourse(response?.data?.data || null);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error("Failed to fetch course details:", error);
+        setFetchError("Unable to load course details.");
+      }
+    };
+
+    fetchCourse();
+    return () => {
+      isMounted = false;
+    };
+  }, [normalizedRouteCourseId, courseProp, courseFromRoute, courseFromStore]);
+
+  const course = courseProp || courseFromRoute || courseFromStore || fetchedCourse || sampleCourse;
 
   const title = course?.title || "Untitled Course";
   const description = course?.description || "No description available.";
@@ -85,15 +119,29 @@ export default function CourseDetail({ course: courseProp }) {
   const isPublished = Boolean(course?.isPublished);
   const createdAt = formatDate(course?.createdAt);
   const updatedAt = formatDate(course?.updatedAt);
-  const sampleVideoUrl = course?.sampleVideoUrl || sampleCourse.sampleVideoUrl;
-
+  const overviewVideoUrl =
+    course?.overview_video ||
+    course?.overviewVideoUrl ||
+    sampleCourse.sampleVideoUrl ||
+    "";
+  console.log("CourseDetail Rendered with url:", overviewVideoUrl);
   return (
     <section className="course-detail">
       <div className="course-detail-video-wrap">
-        <video className="course-detail-video " controls poster={thumbnail || undefined}>
-          <source src={sampleVideoUrl} type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
+        {overviewVideoUrl ? (
+          <ReactPlayer
+            src= {overviewVideoUrl}
+            controls
+            width="100%"
+            height="100%"
+            className="course-detail-video"
+          />
+        ) : (
+          <div className="course-detail-video course-detail-video-empty">
+            {fetchError || "No overview video available."}
+          </div>
+        )}
+        
         <div className="course-detail-item course-detail-item-action">
             <button className="course-detail-enroll-btn">Enroll Now</button>
           </div>

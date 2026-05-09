@@ -1,10 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import { enrollStudent, selectCourse } from "../../features/activeCoursesSlice";
 import useAvailablePublicCourses from "../../hooks/useAvailablePublicCourses";
 import devImage from "../../images/1687.jpg";
-import axios from "axios";
 const resolveInstructorName = (instructor) => {
   if (!instructor) return "Course Admin";
   if (typeof instructor === "string") return instructor;
@@ -26,25 +25,19 @@ export default function CoursesAvailable({
   const navigate = useNavigate();
   const location = useLocation();
   const student = useSelector((state) => state.studentDetails.student);
-  const { selectedCourseId } = useSelector((state) => state.activeCourses);
-  const { publicCourses, status, error } = useAvailablePublicCourses();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(9);
+  const offset = (currentPage - 1) * pageSize;
+  const { publicCourses, status, error, pagination } = useAvailablePublicCourses({
+    offset,
+    limit: pageSize,
+    usePagination: true,
+  });
   const [queryDraft, setQueryDraft] = useState("");
   const [query, setQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [category, setCategory] = useState("All");
   const [level, setLevel] = useState("All");
-
-  const findAvailableCourse = useMemo(()=>{ 
-    // for searching the coourses from the database
-    const fetchCourses = async () => {
-      try{
-        const response = await axios.get("/api/courses");
-      }
-      catch(error){
-        console.error("Error fetching courses:", error);
-      }
-
-  }},[])
   const availableCourses = useMemo( //useMemo is a React hook that allows you to optimize the performance of your components by memoizing the result of a function.
   // Memoising means that React will remember the result of the function and only recompute it when its dependencies change. 
     () => publicCourses.filter((course) => course.isPublished),
@@ -86,6 +79,16 @@ export default function CoursesAvailable({
 
   const handleSearch = () => setQuery(queryDraft);
   const hasActiveFilters = Boolean(query.trim() || category !== "All" || level !== "All");
+  const totalCourses = Number.isFinite(Number(pagination?.total))
+    ? Number(pagination.total)
+    : availableCourses.length;
+  const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalCourses / pageSize)) : 1;
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, currentPage + 2);
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 1) return [];
+    return Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index);
+  }, [endPage, startPage, totalPages]);
 
   const handleResetFilters = () => {
     setQueryDraft("");
@@ -93,7 +96,23 @@ export default function CoursesAvailable({
     setCategory("All");
     setLevel("All");
     setShowFilters(false);
+    setCurrentPage(1);
   };
+
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 1 || nextPage > totalPages) return;
+    setCurrentPage(nextPage);
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, category, level, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handleOpenCourse = (course) => {
     const studentId = student?._id || "local-student";
@@ -175,7 +194,7 @@ export default function CoursesAvailable({
       <div className="sd-avail-results">
         {status === "success" && !error && (
           <p className="sd-avail-meta">
-            Showing {filteredCourses.length} of {availableCourses.length} courses
+            Showing {filteredCourses.length} of {totalCourses} courses
           </p>
         )}
         {status === "loading" && (
@@ -219,6 +238,74 @@ export default function CoursesAvailable({
             );
           })}
         </div>
+
+        {status === "success" && !error && totalPages > 1 && (
+          <div className="sd-avail-pagination">
+            <button
+              className="sd-avail-page-btn"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+
+            <div className="sd-avail-page-list">
+              {startPage > 1 && (
+                <button
+                  className={`sd-avail-page-number ${currentPage === 1 ? "active" : ""}`}
+                  onClick={() => handlePageChange(1)}
+                >
+                  1
+                </button>
+              )}
+              {startPage > 2 && <span className="sd-avail-page-ellipsis">...</span>}
+              {pageNumbers.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  className={`sd-avail-page-number ${currentPage === pageNumber ? "active" : ""}`}
+                  onClick={() => handlePageChange(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              {endPage < totalPages - 1 && <span className="sd-avail-page-ellipsis">...</span>}
+              {endPage < totalPages && (
+                <button
+                  className={`sd-avail-page-number ${currentPage === totalPages ? "active" : ""}`}
+                  onClick={() => handlePageChange(totalPages)}
+                >
+                  {totalPages}
+                </button>
+              )}
+            </div>
+
+            <button
+              className="sd-avail-page-btn"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+
+            <div className="sd-avail-page-size">
+              <label htmlFor="course-page-size" className="sd-avail-page-label">
+                Per page
+              </label>
+              <select
+                id="course-page-size"
+                className="sd-avail-page-select"
+                value={pageSize}
+                onChange={(event) => setPageSize(Number(event.target.value))}
+              >
+                {[6, 9, 12, 18].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

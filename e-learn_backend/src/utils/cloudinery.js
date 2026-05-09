@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import path from "path";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -7,9 +8,16 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const removeLocalFile = (filePath) => {
-  if (filePath && fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
+const removeLocalFile = async (filePath) => {
+  if (!filePath) return;
+  const normalizedPath = path.normalize(filePath);
+
+  try {
+    await fs.promises.rm(normalizedPath, { force: true, maxRetries: 2, retryDelay: 50 });
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      console.error("Failed to delete temporary upload:", error);
+    }
   }
 };
 
@@ -24,10 +32,10 @@ const uploadCloudinary = async (filePath, options = {}) => {
     });
 
     console.log("File uploaded to Cloudinary:", response.secure_url);
-    removeLocalFile(filePath);
+    await removeLocalFile(filePath);
     return response;
   } catch (error) {
-    removeLocalFile(filePath);
+    await removeLocalFile(filePath);
     console.log("Cloudinary upload error:", error);
     return null;
   }

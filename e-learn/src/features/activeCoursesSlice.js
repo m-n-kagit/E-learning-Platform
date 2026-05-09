@@ -51,6 +51,7 @@ const normalizeCourse = (course = {}) => {
   const color = course.color || accentPalette[paletteIndex];
   const progress = Number(course.progress || 0);
   const courseId = course._id || course.id || nanoid();
+  const overviewVideoUrl = String(course.overviewVideoUrl || course.overview_video || "").trim();
 
   return {
     _id: courseId,
@@ -73,7 +74,8 @@ const normalizeCourse = (course = {}) => {
     total: Number(course.total || lessons.length || 0),
     hoursSpent: Number(course.hoursSpent || 0),
     studentsCount: Number(course.studentsCount || enrolledStudents.length || 0),
-    sampleVideoUrl: course.sampleVideoUrl || lessons.find((lesson) => lesson.videoUrl)?.videoUrl || "",
+    overviewVideoUrl:  overviewVideoUrl || lessons.find((lesson) => lesson.videoUrl)?.videoUrl || "",
+    overview_video: overviewVideoUrl,
     averageRating:
       typeof course.averageRating === "number"
         ? course.averageRating

@@ -4,14 +4,27 @@ import Student from "../models/Student.models.js";
 
 const getAllCourses = async (req, res, next) => {
   try {
-    const courses = await Course.find({ isPublished: true })
-      .populate("instructor", "name email")
-      .populate("lessons", "title order duration isPreview")
-      .sort({ createdAt: -1 });
+    const rawOffset = Number(req.query.offset);
+    const rawLimit = Number(req.query.limit);
+    const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 50) : 12;
+
+    const [total, courses] = await Promise.all([
+      Course.countDocuments({ isPublished: true }),
+      Course.find({ isPublished: true })
+        .populate("instructor", "name email")
+        .populate("lessons", "title order duration isPreview")
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit),
+    ]);
 
     res.status(200).json({
       success: true,
       data: courses,
+      total,
+      offset,
+      limit,
     });
   } catch (error) {
     next(error);

@@ -441,6 +441,18 @@ button { font-family: 'Inter', sans-serif; cursor: pointer; }
 .sd-avail-stu { font-size:12px; color:var(--text-secondary); }
 .sd-avail-enroll { font-size:12px; font-family:inherit; background:transparent; border:1px solid rgba(31,92,16,0.35); color:var(--accent); padding:6px 14px; border-radius:8px; cursor:pointer; transition:all .2s; }
 .sd-avail-enroll:hover { background:var(--accent-glow); }
+.sd-avail-pagination { max-width:760px; margin:24px auto 0; display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; }
+.sd-avail-page-btn { border:1px solid var(--border-med); background:var(--card); color:var(--text-primary); font-family:inherit; font-size:12.5px; font-weight:600; padding:8px 14px; border-radius:10px; cursor:pointer; transition:background-color .2s, border-color .2s, opacity .2s; }
+.sd-avail-page-btn:disabled { opacity:.45; cursor:not-allowed; }
+.sd-avail-page-btn:not(:disabled):hover { background:var(--accent-glow); border-color:rgba(31,92,16,0.28); }
+.sd-avail-page-list { display:flex; align-items:center; gap:6px; }
+.sd-avail-page-number { min-width:34px; border:1px solid var(--border-med); background:var(--card); color:var(--text-primary); font-family:inherit; font-size:12px; font-weight:600; padding:6px 8px; border-radius:8px; cursor:pointer; transition:background-color .2s, border-color .2s; }
+.sd-avail-page-number.active { background:var(--header); border-color:rgba(0,0,0,0.1); color:#fff; }
+.sd-avail-page-number:not(.active):hover { background:var(--accent-glow); border-color:rgba(31,92,16,0.28); }
+.sd-avail-page-ellipsis { color:var(--text-secondary); font-size:12px; padding:0 4px; }
+.sd-avail-page-size { display:flex; align-items:center; gap:8px; }
+.sd-avail-page-label { font-size:12px; color:var(--text-secondary); }
+.sd-avail-page-select { border:1px solid var(--border-med); background:var(--card); color:var(--text-primary); font-family:inherit; font-size:12px; padding:6px 8px; border-radius:8px; }
 
 /*Available course card styles:*/
 .sd-avail-search-wrap { max-width:760px; margin:0 auto 18px; display:flex; align-items:center; gap:10px; }

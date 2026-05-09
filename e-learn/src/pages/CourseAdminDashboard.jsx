@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import { clearCourseAdmin, setCourseAdmin, updateCourseAdmin } from "../features/course_admin_details";
-import { setCourses } from "../features/activeCoursesSlice";
+import { setCourses, updateCourse } from "../features/activeCoursesSlice";
 import CourseUpload from "../components/Course/Course_build";
 import { ClipLoader } from "react-spinners";
 import devImage from "../images/1687.jpg";
@@ -200,6 +200,12 @@ export default function CourseAdminDashboard() {
     setView(null);
     setSidebarOpen(false);
   };
+  const openLessonEdit = (course) => {
+    setSelectedCourse(course || null);
+    setActiveNav("lesson-edit");
+    setView(null);
+    setSidebarOpen(false);
+  };
   const adminNotifications = Array.isArray(currentAdmin?.notifications) ? currentAdmin.notifications : [];
   const unread = adminNotifications.filter((n) => !n.read).length;
 
@@ -230,7 +236,8 @@ export default function CourseAdminDashboard() {
       case "analysis":    return <CourseAnalysis admin={currentAdmin} onEditCourse={openCourseEdit} />;
       case "feedback":    return <Feedback admin={currentAdmin} />;
       case "transactions":return <Transactions admin={currentAdmin} />;
-      case "course-edit":   return <AdminCourseEdit course={selectedCourse || currentAdmin.courses[0]} onBack={() => go("courses")} />;
+      case "course-edit":   return <AdminCourseEdit course={selectedCourse || currentAdmin.courses[0]} onBack={() => go("courses")} onEditLessons={openLessonEdit} />;
+      case "lesson-edit":   return <AdminLessonsEdit course={selectedCourse || currentAdmin.courses[0]} onBack={() => go("course-edit")} />;
       default:            return <DashboardHome setView={setView} go={go} admin={currentAdmin} />;
     } //setView is used to switch on the profile dropdown options that require a different view than the main nav items
   };
@@ -400,7 +407,7 @@ function DashboardHome({ go, admin, coursesLoaded, onEditCourse }) {
   );
 }
 
-function AdminCourseEdit({ course, onBack }) {
+function AdminCourseEdit({ course, onBack, onEditLessons }) {
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -408,7 +415,7 @@ function AdminCourseEdit({ course, onBack }) {
     category: "",
   });
   const [thumbnailFile, setThumbnailFile] = useState(null);
-  const [previewFile, setPreviewFile] = useState(null);
+  const [overviewVideoFile, setOverviewVideoFile] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -422,7 +429,7 @@ function AdminCourseEdit({ course, onBack }) {
     });
     setThumbnailPreview(course.thumbnail || "");
     setThumbnailFile(null);
-    setPreviewFile(null);
+    setOverviewVideoFile(null);
   }, [course]);
 
   useEffect(() => {
@@ -440,13 +447,13 @@ function AdminCourseEdit({ course, onBack }) {
   const handleSaveChanges = async () => {
     if (!course?._id) return;
     const payload = new FormData();
-    payload.append("courseId", course._id);
+    payload.append("_id", course._id);
     payload.append("title", form.title.trim());
     payload.append("description", form.description.trim());
     payload.append("price", form.price);
     payload.append("category", form.category.trim());
     if (thumbnailFile) payload.append("thumbnail", thumbnailFile);
-    if (previewFile) payload.append("previewVideo", previewFile);
+    if (overviewVideoFile) payload.append("overviewVideo", overviewVideoFile);
 
     try {
       setSaving(true);
@@ -515,14 +522,14 @@ function AdminCourseEdit({ course, onBack }) {
               <input name="price" type="number" min="0" value={form.price} onChange={handleChange} />
             </div>
             <div className="ca-fgroup">
-              <label>Preview Video</label>
+              <label>Overview Video</label>
               <input
                 type="file"
                 accept="video/*"
-                onChange={(e) => setPreviewFile(e.target.files?.[0] || null)}
+                onChange={(e) => setOverviewVideoFile(e.target.files?.[0] || null)}
               />
-              {course.previewVideo && (
-                <span style={{ fontSize: 12, color: "#666" }}>Current: {course.previewVideo}</span>
+              {course.overview_video && (
+                <span style={{ fontSize: 12, color: "#666" }}>Current: {course.overview_video}</span>
               )}
             </div>
           </div>
@@ -537,11 +544,399 @@ function AdminCourseEdit({ course, onBack }) {
           </div>
           <div className="ca-form-actions">
             <button className="ca-btn-cancel" type="button" onClick={onBack}>Cancel</button>
+            <button className="ca-btn-cancel" type="button" onClick={() => onEditLessons?.(course)}>
+              Edit Lessons
+            </button>
             <button className="ca-btn-save" type="button" onClick={handleSaveChanges} disabled={saving}>
               {saving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function AdminLessonsEdit({ course, onBack }) {
+  const dispatch = useDispatch();
+  const [lessons, setLessons] = useState([]);
+  const [lessonEdits, setLessonEdits] = useState({});
+  const [newLesson, setNewLesson] = useState({
+    title: "",
+    module: "",
+    description: "",
+    order: "",
+    isPreview: false,
+    type: "video",
+    lessonVideo: null,
+    lessonDocument: null,
+  });
+  const [busyLessonId, setBusyLessonId] = useState(null);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const courseLessons = Array.isArray(course?.lessons) ? course.lessons : [];
+    setLessons(courseLessons);
+    setLessonEdits(
+      courseLessons.reduce((acc, lesson) => {
+        acc[lesson._id] = {
+          title: lesson.title || "",
+          description: lesson.description || "",
+          order: Number.isFinite(Number(lesson.order)) ? String(lesson.order) : "",
+          isPreview: Boolean(lesson.isPreview),
+          lessonVideo: null,
+          lessonDocument: null,
+        };
+        return acc;
+      }, {})
+    );
+  }, [course]);
+
+  const updateLessonEdit = (lessonId, key, value) => {
+    setLessonEdits((prev) => ({
+      ...prev,
+      [lessonId]: {
+        ...prev[lessonId],
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleCreateLesson = async () => {
+    if (!course?._id) return;
+    setStatusMessage("");
+    setErrorMessage("");
+
+    const resolvedTitle = newLesson.title.trim() || newLesson.module.trim();
+    if (!resolvedTitle) {
+      setErrorMessage("Lesson title is required.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("courseId", course._id);
+    formData.append("title", resolvedTitle);
+    formData.append("lessonName", newLesson.module.trim() || resolvedTitle);
+    formData.append("description", newLesson.description.trim());
+    if (Number.isFinite(Number(newLesson.order))) {
+      formData.append("order", String(Number(newLesson.order)));
+    }
+    formData.append("isPreview", String(Boolean(newLesson.isPreview)));
+
+    if (newLesson.type === "video" && newLesson.lessonVideo) {
+      formData.append("lessonVideo", newLesson.lessonVideo);
+    }
+    if (newLesson.type === "document" && newLesson.lessonDocument) {
+      formData.append("lessonDocument", newLesson.lessonDocument);
+    }
+
+    try {
+      setBusyLessonId("new");
+      const response = await axios.post("/api/courses/add-lesson", formData, {
+        withCredentials: true,
+      });
+      const createdLesson = response?.data?.data?.lesson;
+      if (createdLesson) {
+        const nextLessons = [...lessons, createdLesson];
+        setLessons(nextLessons);
+        dispatch(updateCourse({ _id: course._id, updates: { lessons: nextLessons } }));
+      }
+
+      setNewLesson({
+        title: "",
+        module: "",
+        description: "",
+        order: "",
+        isPreview: false,
+        type: "video",
+        lessonVideo: null,
+        lessonDocument: null,
+      });
+      setStatusMessage("Lesson added successfully.");
+    } catch (error) {
+      console.error("Failed to add lesson:", error);
+      setErrorMessage(error?.response?.data?.message || "Unable to add lesson right now.");
+    } finally {
+      setBusyLessonId(null);
+    }
+  };
+
+  const handleUpdateLesson = async (lessonId) => {
+    if (!course?._id || !lessonId) return;
+    setStatusMessage("");
+    setErrorMessage("");
+    const edit = lessonEdits[lessonId];
+    if (!edit?.title?.trim()) {
+      setErrorMessage("Lesson title is required.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("courseId", course._id);
+    formData.append("lessonId", lessonId);
+    formData.append("title", edit.title.trim());
+    formData.append("description", edit.description.trim());
+    if (Number.isFinite(Number(edit.order))) {
+      formData.append("order", String(Number(edit.order)));
+    }
+    formData.append("isPreview", String(Boolean(edit.isPreview)));
+    if (edit.lessonVideo) formData.append("lessonVideo", edit.lessonVideo);
+    if (edit.lessonDocument) formData.append("lessonDocument", edit.lessonDocument);
+
+    try {
+      setBusyLessonId(lessonId);
+      const response = await axios.patch("/api/courses/update-lesson", formData, {
+        withCredentials: true,
+      });
+      const updatedLesson = response?.data?.data;
+      if (updatedLesson) {
+        const nextLessons = lessons.map((lesson) =>
+          String(lesson._id) === String(lessonId) ? updatedLesson : lesson
+        );
+        setLessons(nextLessons);
+        dispatch(updateCourse({ _id: course._id, updates: { lessons: nextLessons } }));
+        setLessonEdits((prev) => ({
+          ...prev,
+          [lessonId]: {
+            ...prev[lessonId],
+            lessonVideo: null,
+            lessonDocument: null,
+          },
+        }));
+        setStatusMessage("Lesson updated successfully.");
+      }
+    } catch (error) {
+      console.error("Failed to update lesson:", error);
+      setErrorMessage(error?.response?.data?.message || "Unable to update lesson right now.");
+    } finally {
+      setBusyLessonId(null);
+    }
+  };
+
+  const handleDeleteLesson = async (lessonId) => {
+    if (!course?._id || !lessonId) return;
+    setStatusMessage("");
+    setErrorMessage("");
+    try {
+      setBusyLessonId(lessonId);
+      await axios.delete("/api/courses/remove-lesson", {
+        withCredentials: true,
+        data: { courseId: course._id, lessonId },
+      });
+      const nextLessons = lessons.filter((lesson) => String(lesson._id) !== String(lessonId));
+      setLessons(nextLessons);
+      dispatch(updateCourse({ _id: course._id, updates: { lessons: nextLessons } }));
+      setStatusMessage("Lesson deleted successfully.");
+    } catch (error) {
+      console.error("Failed to delete lesson:", error);
+      setErrorMessage(error?.response?.data?.message || "Unable to delete lesson right now.");
+    } finally {
+      setBusyLessonId(null);
+    }
+  };
+
+  if (!course) {
+    return (
+      <section className="ca-page">
+        <button className="ca-back" onClick={onBack}>Back to Course</button>
+        <div className="ca-empty-state">Course details are not available.</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="ca-page">
+      <button className="ca-back" onClick={onBack}>Back to Course</button>
+      <h1 className="ca-h1">Edit Lessons</h1>
+      <p style={{ color: "#9aa3b2", marginBottom: 18 }}>
+        Manage lessons for <strong style={{ color: "#e2e2f0" }}>{course.title || course.name}</strong>
+      </p>
+
+      {(statusMessage || errorMessage) && (
+        <div className="ca-alert" style={{ marginBottom: 16, color: errorMessage ? "#fda4af" : "#c7f9b8" }}>
+          {errorMessage || statusMessage}
+        </div>
+      )}
+
+      <div className="ca-edit-wrap" style={{ alignItems: "flex-start", marginBottom: 24 }}>
+        <div className="ca-edit-form" style={{ minWidth: 300 }}>
+          <h3 style={{ marginTop: 0, marginBottom: 12 }}>Add New Lesson</h3>
+          <div className="ca-form-grid">
+            <div className="ca-fgroup">
+              <label>Lesson Title</label>
+              <input
+                type="text"
+                value={newLesson.title}
+                onChange={(e) => setNewLesson((prev) => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+            <div className="ca-fgroup">
+              <label>Module / Week</label>
+              <input
+                type="text"
+                value={newLesson.module}
+                onChange={(e) => setNewLesson((prev) => ({ ...prev, module: e.target.value }))}
+              />
+            </div>
+            <div className="ca-fgroup">
+              <label>Order</label>
+              <input
+                type="number"
+                min="1"
+                value={newLesson.order}
+                onChange={(e) => setNewLesson((prev) => ({ ...prev, order: e.target.value }))}
+              />
+            </div>
+            <div className="ca-fgroup">
+              <label>Type</label>
+              <select
+                value={newLesson.type}
+                onChange={(e) => setNewLesson((prev) => ({ ...prev, type: e.target.value }))}
+              >
+                <option value="video">Video</option>
+                <option value="document">Document</option>
+                <option value="article">Article</option>
+              </select>
+            </div>
+          </div>
+          <div className="ca-fgroup">
+            <label>Description</label>
+            <textarea
+              rows={4}
+              value={newLesson.description}
+              onChange={(e) => setNewLesson((prev) => ({ ...prev, description: e.target.value }))}
+            />
+          </div>
+          {newLesson.type === "video" && (
+            <div className="ca-fgroup">
+              <label>Lesson Video</label>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(e) => setNewLesson((prev) => ({ ...prev, lessonVideo: e.target.files?.[0] || null }))}
+              />
+            </div>
+          )}
+          {newLesson.type === "document" && (
+            <div className="ca-fgroup">
+              <label>Lesson Document</label>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.md,.html,.txt"
+                onChange={(e) => setNewLesson((prev) => ({ ...prev, lessonDocument: e.target.files?.[0] || null }))}
+              />
+            </div>
+          )}
+          <div className="ca-fgroup" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <input
+              id="new-lesson-preview"
+              type="checkbox"
+              checked={newLesson.isPreview}
+              onChange={(e) => setNewLesson((prev) => ({ ...prev, isPreview: e.target.checked }))}
+            />
+            <label htmlFor="new-lesson-preview" className="ca-checkbox-label">Allow preview</label>
+          </div>
+          <button
+            className="ca-btn-save"
+            type="button"
+            onClick={handleCreateLesson}
+            disabled={busyLessonId === "new"}
+          >
+            {busyLessonId === "new" ? "Adding..." : "Add Lesson"}
+          </button>
+        </div>
+      </div>
+
+      <div className="ca-course-grid">
+        {lessons.length === 0 && (
+          <div className="ca-empty-state">No lessons yet. Add the first lesson above.</div>
+        )}
+        {lessons.map((lesson) => {
+          const edit = lessonEdits[lesson._id] || {};
+          return (
+            <div key={lesson._id} className="ca-ccard" style={{ padding: 18 }}>
+              <div className="ca-ccard-body" style={{ padding: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <p className="ca-ccard-name" style={{ marginBottom: 0 }}>{lesson.title}</p>
+                  <span className="ca-tag">Order {lesson.order}</span>
+                </div>
+                <div className="ca-form-grid">
+                  <div className="ca-fgroup">
+                    <label>Lesson Title</label>
+                    <input
+                      type="text"
+                      value={edit.title || ""}
+                      onChange={(e) => updateLessonEdit(lesson._id, "title", e.target.value)}
+                    />
+                  </div>
+                  <div className="ca-fgroup">
+                    <label>Order</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={edit.order || ""}
+                      onChange={(e) => updateLessonEdit(lesson._id, "order", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="ca-fgroup">
+                  <label>Description</label>
+                  <textarea
+                    rows={3}
+                    value={edit.description || ""}
+                    onChange={(e) => updateLessonEdit(lesson._id, "description", e.target.value)}
+                  />
+                </div>
+                <div className="ca-form-grid">
+                  <div className="ca-fgroup">
+                    <label>Replace Video</label>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => updateLessonEdit(lesson._id, "lessonVideo", e.target.files?.[0] || null)}
+                    />
+                  </div>
+                  <div className="ca-fgroup">
+                    <label>Replace Document</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.md,.html,.txt"
+                      onChange={(e) => updateLessonEdit(lesson._id, "lessonDocument", e.target.files?.[0] || null)}
+                    />
+                  </div>
+                </div>
+                <div className="ca-fgroup" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <input
+                    id={`lesson-preview-${lesson._id}`}
+                    type="checkbox"
+                    checked={Boolean(edit.isPreview)}
+                    onChange={(e) => updateLessonEdit(lesson._id, "isPreview", e.target.checked)}
+                  />
+                  <label htmlFor={`lesson-preview-${lesson._id}`}>Allow preview</label>
+                </div>
+                <div className="ca-form-actions" style={{ justifyContent: "space-between" }}>
+                  <button
+                    className="ca-btn-cancel"
+                    type="button"
+                    onClick={() => handleDeleteLesson(lesson._id)}
+                    disabled={busyLessonId === lesson._id}
+                  >
+                    {busyLessonId === lesson._id ? "Working..." : "Delete"}
+                  </button>
+                  <button
+                    className="ca-btn-save"
+                    type="button"
+                    onClick={() => handleUpdateLesson(lesson._id)}
+                    disabled={busyLessonId === lesson._id}
+                  >
+                    {busyLessonId === lesson._id ? "Saving..." : "Save Lesson"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -1164,6 +1559,7 @@ const STYLES = `
 .ca-upload-form { max-width:600px; display:flex; flex-direction:column; gap:16px; }
 .ca-fgroup { display:flex; flex-direction:column; gap:6px; }
 .ca-fgroup label { font-size:12px; color:#888; font-weight:500; }
+.ca-checkbox-label { font-size:12px; color:var(--text-secondary); font-weight:600; letter-spacing:0.02em; }
 .ca-fgroup input,.ca-fgroup textarea,.ca-fgroup select { background:#1c1c2e; border:1px solid #ffffff10; color:#e2e2f0; font-family:inherit; font-size:13.5px; padding:10px 14px; border-radius:10px; outline:none; resize:vertical; transition:border-color .2s; }
 .ca-fgroup input:focus,.ca-fgroup textarea:focus,.ca-fgroup select:focus { border-color:#f9731666; }
 .ca-upload-zone { border:2px dashed #ffffff15; border-radius:14px; padding:40px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px; transition:border-color .2s; }

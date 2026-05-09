@@ -58,6 +58,21 @@ export const upload = multer({
   },
 });
 
+const isLessonDocument = (file) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = new Set([".pdf", ".doc", ".docx", ".md", ".html", ".txt"]);
+  const allowedMimeTypes = new Set([
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/markdown",
+    "text/html",
+    "text/plain"
+  ]);
+
+  return allowedExtensions.has(ext) || allowedMimeTypes.has(file.mimetype);
+};
+
 const courseMediaFilter = (req, file, cb) => {
   if (file.fieldname === "thumbnail") {
     const isImage = file.mimetype.startsWith("image/png") || file.mimetype.startsWith("image/jpeg") || file.mimetype.startsWith("image/jpg");
@@ -69,7 +84,26 @@ const courseMediaFilter = (req, file, cb) => {
     return;
   }
 
-  if (file.fieldname === "lessonVideo" || file.fieldname === "lessonVideos") {
+  if (file.fieldname === "lessonVideo" || file.fieldname === "overviewVideo") {
+    const isVideo = file.mimetype.startsWith("video/");
+    if (!isVideo && !isLessonDocument(file)) {
+      cb(new Error("Lesson upload must be a video or document file."));
+      return;
+    }
+    cb(null, true);
+    return;
+  }
+
+  if (file.fieldname === "lessonDocument") {
+    if (!isLessonDocument(file)) {
+      cb(new Error("Lesson document must be a PDF, DOC, DOCX, MD, HTML, or TXT file."));
+      return;
+    }
+    cb(null, true);
+    return;
+  }
+
+  if (file.fieldname === "lessonVideos") {
     const isVideo = file.mimetype.startsWith("video/");
     if (!isVideo) {
       cb(new Error("Lesson upload must be a video file."));

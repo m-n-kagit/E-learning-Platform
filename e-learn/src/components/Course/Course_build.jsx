@@ -21,6 +21,7 @@ const createEmptyLessonForm = () => ({
   module: "",
   description: "",
   lessonVideo: null,
+  lessonDocument: null,
 });
 
 const deriveInitials = (name = "") => {
@@ -369,7 +370,8 @@ function LessonBuilder({ courseData, onBack }) {
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
-  const lessonFileRef = useRef(null);
+  const lessonVideoRef = useRef(null);
+  const lessonDocumentRef = useRef(null);
 
   const updateLessonField = (key, value) => {
     setLessonForm((current) => ({ ...current, [key]: value }));
@@ -377,8 +379,11 @@ function LessonBuilder({ courseData, onBack }) {
 
   const resetLessonForm = () => {
     setLessonForm(createEmptyLessonForm());
-    if (lessonFileRef.current) {
-      lessonFileRef.current.value = "";
+    if (lessonVideoRef.current) {
+      lessonVideoRef.current.value = "";
+    }
+    if (lessonDocumentRef.current) {
+      lessonDocumentRef.current.value = "";
     }
   };
 
@@ -387,11 +392,17 @@ function LessonBuilder({ courseData, onBack }) {
     updateLessonField("lessonVideo", file);
   };
 
+  const handleLessonDocument = (event) => {
+    const file = event.target.files?.[0] || null;
+    updateLessonField("lessonDocument", file);
+  };
+
   const hasDraftLesson = Boolean(
     lessonForm.title.trim() ||
     lessonForm.module.trim() ||
     lessonForm.description.trim() ||
-    lessonForm.lessonVideo
+    lessonForm.lessonVideo ||
+    lessonForm.lessonDocument
   );
 
   const buildLessonEntry = () => {
@@ -406,6 +417,7 @@ function LessonBuilder({ courseData, onBack }) {
       module: lessonForm.module.trim(),
       description: lessonForm.description.trim(),
       lessonVideo: lessonForm.lessonVideo,
+      lessonDocument: lessonForm.lessonDocument,
       type: tab,
     };
   };
@@ -430,6 +442,9 @@ function LessonBuilder({ courseData, onBack }) {
 
     if (lesson.lessonVideo) {
       formData.append("lessonVideo", lesson.lessonVideo);
+    }
+    if (lesson.lessonDocument) {
+      formData.append("lessonDocument", lesson.lessonDocument);
     }
 
     await axios.post("/api/courses/add-lesson", formData, {
@@ -558,36 +573,69 @@ function LessonBuilder({ courseData, onBack }) {
           />
         </div>
 
-        <div
-          onClick={() => lessonFileRef.current?.click()}
-          style={{
-            border: "1.5px dashed rgba(0, 0, 0, 0.16)",
-            borderRadius: 14,
-            padding: "32px 20px",
-            textAlign: "center",
-            cursor: "pointer",
-            color: "#4a6830",
-            fontSize: 13,
-            background: "rgba(255, 255, 255, 0.3)",
-          }}
-        >
-          <div style={{ width: 44, height: 44, background: "rgba(255, 255, 255, 0.55)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-            UP
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+          <div
+            onClick={() => lessonVideoRef.current?.click()}
+            style={{
+              border: "1.5px dashed rgba(0, 0, 0, 0.16)",
+              borderRadius: 14,
+              padding: "28px 20px",
+              textAlign: "center",
+              cursor: "pointer",
+              color: "#4a6830",
+              fontSize: 13,
+              background: "rgba(255, 255, 255, 0.3)",
+            }}
+          >
+            <div style={{ width: 44, height: 44, background: "rgba(255, 255, 255, 0.55)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+              VID
+            </div>
+            <p>Upload lesson video</p>
+            <span style={{ fontSize: 11, color: "#2e4a1a", marginTop: 4, display: "block" }}>{UPLOAD_HINTS.video}</span>
+            {lessonForm.lessonVideo && (
+              <span style={{ fontSize: 12, color: "#1f5c10", marginTop: 8, display: "block", fontWeight: 600 }}>
+                {lessonForm.lessonVideo.name}
+              </span>
+            )}
           </div>
-          <p>Drag and drop or <span style={{ color: "#1f5c10", fontWeight: 600 }}>browse files</span></p>
-          <span style={{ fontSize: 11, color: "#2e4a1a", marginTop: 4, display: "block" }}>{UPLOAD_HINTS[tab]}</span>
-          {lessonForm.lessonVideo && (
-            <span style={{ fontSize: 12, color: "#1f5c10", marginTop: 8, display: "block", fontWeight: 600 }}>
-              {lessonForm.lessonVideo.name}
-            </span>
-          )}
+          <div
+            onClick={() => lessonDocumentRef.current?.click()}
+            style={{
+              border: "1.5px dashed rgba(0, 0, 0, 0.16)",
+              borderRadius: 14,
+              padding: "28px 20px",
+              textAlign: "center",
+              cursor: "pointer",
+              color: "#4a6830",
+              fontSize: 13,
+              background: "rgba(255, 255, 255, 0.3)",
+            }}
+          >
+            <div style={{ width: 44, height: 44, background: "rgba(255, 255, 255, 0.55)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+              DOC
+            </div>
+            <p>Upload article/document</p>
+            <span style={{ fontSize: 11, color: "#2e4a1a", marginTop: 4, display: "block" }}>{UPLOAD_HINTS.document}</span>
+            {lessonForm.lessonDocument && (
+              <span style={{ fontSize: 12, color: "#1f5c10", marginTop: 8, display: "block", fontWeight: 600 }}>
+                {lessonForm.lessonDocument.name}
+              </span>
+            )}
+          </div>
         </div>
         <input
-          ref={lessonFileRef}
+          ref={lessonVideoRef}
           type="file"
-          accept={tab === "video" ? "video/*" : ".pdf,.doc,.docx,.md,.html,.txt"}
+          accept="video/*"
           style={{ display: "none" }}
           onChange={handleLessonVideo}
+        />
+        <input
+          ref={lessonDocumentRef}
+          type="file"
+          accept=".pdf,.doc,.docx,.md,.html,.txt"
+          style={{ display: "none" }}
+          onChange={handleLessonDocument}
         />
 
         <div style={{ ...styles.footer, marginTop: 16, justifyContent: "flex-start" }}>
@@ -627,7 +675,15 @@ function LessonBuilder({ courseData, onBack }) {
                     <td style={{ padding: "12px 16px", fontSize: 13, color: "#1a2e0f" }}>{lesson.module || "Untitled module"}</td>
                     <td style={{ padding: "12px 16px", fontSize: 13, color: "#1a2e0f" }}>{lesson.description || "-"}</td>
                     <td style={{ padding: "12px 16px" }}>
-                      <span style={styles.tagBlue}>{lesson.lessonVideo ? "Video" : lesson.type}</span>
+                      <span style={styles.tagBlue}>
+                        {lesson.lessonVideo && lesson.lessonDocument
+                          ? "Video + Doc"
+                          : lesson.lessonVideo
+                              ? "Video"
+                              : lesson.lessonDocument
+                                  ? "Document"
+                                  : lesson.type}
+                      </span>
                     </td>
                   </tr>
                 ))
