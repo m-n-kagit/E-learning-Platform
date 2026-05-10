@@ -3,6 +3,7 @@ import * as courseController from "../controller/cadminCourseController.js";
 import * as studentCourseController from "../controller/studentCourseController.js";
 import protect from "../middlewares/authMiddleware.js";
 import { courseMediaUpload } from "../middlewares/multer.js";
+import { enrollInCourse, getEnrolledCourses, getAllLessonsForCourse } from "../controller/courseEnrollController.js";
 const router = express.Router();
 
 const courseUploadFields = courseMediaUpload.fields([
@@ -23,8 +24,7 @@ const thumbnailUploadOnly = courseMediaUpload.fields([
 router.get("/available", studentCourseController.getAllCourses);
 router.get("/available/:courseId", studentCourseController.getCourseById);
 router.get("/detail/:courseId", studentCourseController.getCourseById);
-router.get(
-    "/my-courses",
+router.get( "/my-courses",
     protect.protect,
     protect.restrictTo("user", "course_admin", "admin"),
     studentCourseController.getMyCourses
@@ -80,5 +80,30 @@ router.post(
     courseUploadFields,
     courseController.uploadContent
 );
+router.delete(
+    "/delete-course",
+    protect.protect,
+    protect.restrictTo("course_admin", "admin"),
+    courseController.deleteCourse
+);
+
+router.post("/enroll-course",
+    protect.protect,
+    protect.restrictTo("user", "course_admin", "admin"),
+    enrollInCourse
+);
+
+router.get("/my-enrollments",
+    protect.protect,
+    protect.restrictTo("user", "course_admin", "admin"),
+    getEnrolledCourses
+);
+
+router.get("/course/:courseId/lessons",
+    protect.protect,
+    protect.restrictTo("user"),
+    getAllLessonsForCourse
+);
+
 
 export default router;

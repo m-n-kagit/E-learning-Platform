@@ -59,7 +59,7 @@ const NAV_ITEMS = [
   { id: "performance", label: "Student Performance", icon: "◈" },
   { id: "analysis", label: "Course Analysis", icon: "⊕" },
   { id: "feedback", label: "Feedback", icon: "✦" },
-  { id: "transactions", label: "Transactions", icon: "◳" },
+  // { id: "transactions", label: "Transactions", icon: "₿" },
 ];
 
 /* ─────────────────────────────────────────────
@@ -194,14 +194,19 @@ export default function CourseAdminDashboard() {
   }, [cAdmin?._id, coursesLoaded]);
 
   const go = (id) => { setActiveNav(id); setView(null); setSidebarOpen(false); };
+  const resolveCourseFromStore = (course) => {
+    if (!course?._id) return course || null;
+    return allCourses.find((item) => String(item?._id) === String(course._id)) || course || null;
+  };
+
   const openCourseEdit = (course) => {
-    setSelectedCourse(course || null);
+    setSelectedCourse(resolveCourseFromStore(course));
     setActiveNav("course-edit");
     setView(null);
     setSidebarOpen(false);
   };
   const openLessonEdit = (course) => {
-    setSelectedCourse(course || null);
+    setSelectedCourse(resolveCourseFromStore(course));
     setActiveNav("lesson-edit");
     setView(null);
     setSidebarOpen(false);
@@ -235,7 +240,7 @@ export default function CourseAdminDashboard() {
       case "performance": return <StudentPerformance admin={currentAdmin} />;
       case "analysis":    return <CourseAnalysis admin={currentAdmin} onEditCourse={openCourseEdit} />;
       case "feedback":    return <Feedback admin={currentAdmin} />;
-      case "transactions":return <Transactions admin={currentAdmin} />;
+      // case "transactions":return <Transactions admin={currentAdmin} />;
       case "course-edit":   return <AdminCourseEdit course={selectedCourse || currentAdmin.courses[0]} onBack={() => go("courses")} onEditLessons={openLessonEdit} />;
       case "lesson-edit":   return <AdminLessonsEdit course={selectedCourse || currentAdmin.courses[0]} onBack={() => go("course-edit")} />;
       default:            return <DashboardHome setView={setView} go={go} admin={currentAdmin} />;
@@ -624,10 +629,10 @@ function AdminLessonsEdit({ course, onBack }) {
     }
     formData.append("isPreview", String(Boolean(newLesson.isPreview)));
 
-    if (newLesson.type === "video" && newLesson.lessonVideo) {
+    if (newLesson.lessonVideo) {
       formData.append("lessonVideo", newLesson.lessonVideo);
     }
-    if (newLesson.type === "document" && newLesson.lessonDocument) {
+    if (newLesson.lessonDocument) {
       formData.append("lessonDocument", newLesson.lessonDocument);
     }
 
@@ -796,7 +801,7 @@ function AdminLessonsEdit({ course, onBack }) {
               >
                 <option value="video">Video</option>
                 <option value="document">Document</option>
-                <option value="article">Article</option>
+                <option value="article">Article / Notes</option>
               </select>
             </div>
           </div>
@@ -808,7 +813,7 @@ function AdminLessonsEdit({ course, onBack }) {
               onChange={(e) => setNewLesson((prev) => ({ ...prev, description: e.target.value }))}
             />
           </div>
-          {newLesson.type === "video" && (
+          {(newLesson.type === "video" || newLesson.type === "document" || newLesson.type === "article") && (
             <div className="ca-fgroup">
               <label>Lesson Video</label>
               <input
@@ -818,16 +823,14 @@ function AdminLessonsEdit({ course, onBack }) {
               />
             </div>
           )}
-          {newLesson.type === "document" && (
-            <div className="ca-fgroup">
-              <label>Lesson Document</label>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.md,.html,.txt"
-                onChange={(e) => setNewLesson((prev) => ({ ...prev, lessonDocument: e.target.files?.[0] || null }))}
-              />
-            </div>
-          )}
+          <div className="ca-fgroup">
+            <label>{newLesson.type === "article" ? "Article File" : "Lesson Document"}</label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.md,.html,.txt"
+              onChange={(e) => setNewLesson((prev) => ({ ...prev, lessonDocument: e.target.files?.[0] || null }))}
+            />
+          </div>
           <div className="ca-fgroup" style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <input
               id="new-lesson-preview"
@@ -1057,13 +1060,66 @@ function CourseAnalysis({ admin, onEditCourse }) {
 // }
 
 function Feedback({ admin }) {
-  const reviews = Array.isArray(admin?.reviews) && admin.reviews.length ? admin.reviews : ADMIN.reviews;
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchReviews = async () => {
+      try {
+        const courses = Array.isArray(admin?.courses) ? admin.courses : [];
+        if (!courses.length) {
+          setReviews(ADMIN.reviews);
+          return;
+        }
+
+        const responses = await Promise.all(
+          courses.map((course) =>
+            axios.get(`/api/reviews/${course._id || course.id}`, { withCredentials: true })
+          )
+        );
+
+        if (!isMounted) return;
+        const merged = responses.flatMap((response) => response?.data?.data || []);
+        const normalized = merged.map((review) => ({
+          id: review._id,
+          student: review?.user?.name || "Student",
+          rating: Number(review?.rating || 0),
+          text: review?.comment || "",
+          course: review?.course?.title || "Course",
+          date: review?.createdAt
+            ? new Date(review.createdAt).toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "",
+        }));
+        setReviews(normalized.length ? normalized : ADMIN.reviews);
+      } catch (error) {
+        if (!isMounted) return;
+        setReviews(ADMIN.reviews);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchReviews();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [admin]);
 
   return (
     <div className="ca-page">
       <h1 className="ca-h1">Student Feedback</h1>
       <div className="ca-reviews-list">
-        {reviews.map((r) => (
+        {loading ? (
+          <div className="ca-review-card">Loading reviews...</div>
+        ) : (
+          reviews.map((r) => (
           <div className="ca-review-card" key={r.id}>
             <div className="ca-review-top">
               <div className="ca-reviewer-ava">{r.student[0]}</div>
@@ -1075,44 +1131,45 @@ function Feedback({ admin }) {
             </div>
             <p className="ca-review-text">{r.text}</p>
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
 }
 
-function Transactions({ admin }) {
-  const courses = Array.isArray(admin?.courses) ? admin.courses : [];
-  const txns = [
-    { id: "TXN-401", date: "Mar 22, 2024", course: "Full-Stack Web Dev Bootcamp", students: 3, amount: "₹14,997", status: "Paid" },
-    { id: "TXN-402", date: "Mar 15, 2024", course: "Node.js Masterclass", students: 5, amount: "₹19,995", status: "Paid" },
-    { id: "TXN-403", date: "Mar 10, 2024", course: "Full-Stack Web Dev Bootcamp", students: 2, amount: "₹9,998", status: "Pending" },
-  ];
-  return (
-    <div className="ca-page">
-      <h1 className="ca-h1">Transaction History</h1>
-      <div className="ca-table-wrap">
-        <table className="ca-table">
-          <thead>
-            <tr><th>ID</th><th>Date</th><th>Course</th><th>New Students</th><th>Revenue</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            {txns.map((t) => (
-              <tr key={t.id}>
-                <td className="ca-txn-id">{t.id}</td>
-                <td>{t.date}</td>
-                <td>{t.course}</td>
-                <td>{t.students}</td>
-                <td className="ca-txn-amt">{t.amount}</td>
-                <td><span className={`ca-tag ${t.status === "Paid" ? "green" : "orange"}`}>{t.status}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+// function Transactions({ admin }) {
+//   const courses = Array.isArray(admin?.courses) ? admin.courses : [];
+//   const txns = [
+//     { id: "TXN-401", date: "Mar 22, 2024", course: "Full-Stack Web Dev Bootcamp", students: 3, amount: "₹14,997", status: "Paid" },
+//     { id: "TXN-402", date: "Mar 15, 2024", course: "Node.js Masterclass", students: 5, amount: "₹19,995", status: "Paid" },
+//     { id: "TXN-403", date: "Mar 10, 2024", course: "Full-Stack Web Dev Bootcamp", students: 2, amount: "₹9,998", status: "Pending" },
+//   ];
+//   return (
+//     <div className="ca-page">
+//       <h1 className="ca-h1">Transaction History</h1>
+//       <div className="ca-table-wrap">
+//         <table className="ca-table">
+//           <thead>
+//             <tr><th>ID</th><th>Date</th><th>Course</th><th>New Students</th><th>Revenue</th><th>Status</th></tr>
+//           </thead>
+//           <tbody>
+//             {txns.map((t) => (
+//               <tr key={t.id}>
+//                 <td className="ca-txn-id">{t.id}</td>
+//                 <td>{t.date}</td>
+//                 <td>{t.course}</td>
+//                 <td>{t.students}</td>
+//                 <td className="ca-txn-amt">{t.amount}</td>
+//                 <td><span className={`ca-tag ${t.status === "Paid" ? "green" : "orange"}`}>{t.status}</span></td>
+//               </tr>
+//             ))}
+//           </tbody>
+//         </table>
+//       </div>
+//     </div>
+//   );
+// }
 
 /* ─── Profile Views ─── */
 function ViewProfile({ onBack, admin }) { //onBack is used to return to the previous view (dashboard home) when viewing profile details
@@ -1207,8 +1264,61 @@ function MonthlyIncome({ onBack , admin  }) {
 }
 
 function TeachingReviews({ onBack, admin }) {
-  const reviews = Array.isArray(admin?.reviews) && admin.reviews.length ? admin.reviews : ADMIN.reviews;
-  const avgRating = (reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1);
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchReviews = async () => {
+      try {
+        const courses = Array.isArray(admin?.courses) ? admin.courses : [];
+        if (!courses.length) {
+          setReviews(ADMIN.reviews);
+          return;
+        }
+
+        const responses = await Promise.all(
+          courses.map((course) =>
+            axios.get(`/api/reviews/${course._id || course.id}`, { withCredentials: true })
+          )
+        );
+
+        if (!isMounted) return;
+        const merged = responses.flatMap((response) => response?.data?.data || []);
+        const normalized = merged.map((review) => ({
+          id: review._id,
+          student: review?.user?.name || "Student",
+          rating: Number(review?.rating || 0),
+          text: review?.comment || "",
+          course: review?.course?.title || "Course",
+          date: review?.createdAt
+            ? new Date(review.createdAt).toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "",
+        }));
+        setReviews(normalized.length ? normalized : ADMIN.reviews);
+      } catch (error) {
+        if (!isMounted) return;
+        setReviews(ADMIN.reviews);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchReviews();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [admin]);
+
+  const avgRating = reviews.length
+    ? (reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1)
+    : "0.0";
   return (
     <div className="ca-page">
       <button className="ca-back" onClick={onBack}>← Back</button>
@@ -1235,21 +1345,27 @@ function TeachingReviews({ onBack, admin }) {
         </div>
       </div>
       <div className="ca-reviews-list">
-        {reviews.map((r) => (
-          <div className="ca-review-card" key={r.id}>
-            <div className="ca-review-top">
-              <div className="ca-reviewer-ava">{r.student[0]}</div>
-              <div><p className="ca-bold">{r.student}</p><span style={{ fontSize: 12, color: "#666" }}>{r.course} · {r.date}</span></div>
-              <div className="ca-stars">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</div>
+        {loading ? (
+          <div className="ca-review-card">Loading reviews...</div>
+        ) : (
+          reviews.map((r) => (
+            <div className="ca-review-card" key={r.id}>
+              <div className="ca-review-top">
+                <div className="ca-reviewer-ava">{r.student[0]}</div>
+                <div>
+                  <p className="ca-bold">{r.student}</p>
+                  <span style={{ fontSize: 12, color: "#666" }}>{r.course} · {r.date}</span>
+                </div>
+                <div className="ca-stars">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</div>
+              </div>
+              <p className="ca-review-text">{r.text}</p>
             </div>
-            <p className="ca-review-text">{r.text}</p>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
 }
-
 function EditProfile({ onBack, admin }) {
   const dispatch = useDispatch();
   const [form, setForm] = useState({
@@ -1580,7 +1696,7 @@ const STYLES = `
 .ca-review-card { background:#161626; border:1px solid #ffffff08; border-radius:14px; padding:20px; }
 .ca-review-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .ca-reviewer-ava { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#5468ff,#8b5cf6); color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; font-size:15px; }
-.ca-stars { color:#f59e0b; font-size:14px; margin-left:auto; }
+.ca-stars { color:#f8fc03; font-size:14px; margin-left:auto; }
 .ca-review-text { font-size:13.5px; color:#999; line-height:1.6; margin:0; }
 .ca-big-rating { display:flex; flex-direction:column; align-items:center; gap:6px; background:#161626; border:1px solid #ffffff08; border-radius:14px; padding:24px 32px; }
 .ca-big-rating-num { font-size:48px; font-weight:800; color:#f59e0b; line-height:1; }

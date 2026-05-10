@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
 import emailRoutes from "./routes/EmailRoutes.js";
 import courseHandlingRoutes from "./routes/courseHandlingRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js";
 import errorHandler from "./middlewares/errorMiddleware.js";
 import rateLimiter from "./utils/rate-limiter.js";
 dotenv.config();
@@ -36,6 +38,8 @@ app.use(cookieParser())
 app.use("/api/auth", authRoutes);
 app.use("/api/emails", emailRoutes); 
 app.use("/api/courses", courseHandlingRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api", reviewRoutes);
 
 
 // Global error handler — MUST be last middleware

@@ -5,6 +5,7 @@ import  Certificates  from "../components/Certificates";
 import  MyCourses  from "../components/Course/MyCourses";
 import CoursesAvailable from "../components/Course/CoursesAvailable";
 import CourseDetail from "../components/Course/CourseDetail";
+import CoursePage from "../components/Course/Course";
 import axios from "axios";
 import { useDispatch,useSelector } from "react-redux";
 import { setStudent, updateStudent } from "../features/student_detailsSlice";
@@ -58,7 +59,7 @@ const deriveInitials = (name = "") => {
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   return parts[0][0].toUpperCase();
 };
-export default function StudentDashboard() {
+export default function StudentDashboard({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   // const [student , setStudent_detail] = useState(null); //no requirement of 
@@ -77,10 +78,19 @@ export default function StudentDashboard() {
   
   const getStudentData = async () => {
     try { 
-      const response = await axios.get("/api/auth/me", { withCredentials: true });
-      const studentData = response?.data?.data;
+      const [studentResponse, enrollmentsResponse] = await Promise.all([
+        axios.get("/api/auth/me", { withCredentials: true }),
+        axios.get("/api/courses/my-enrollments", { withCredentials: true }),
+      ]);
+      const studentData = studentResponse?.data?.data;
+      const enrolledCourses = Array.isArray(enrollmentsResponse?.data?.data)
+        ? enrollmentsResponse.data.data
+        : [];
       if (studentData) {
-        dispatch(setStudent(studentData)); // Update Redux store with student data
+        dispatch(setStudent({
+          ...studentData,
+          enrolledCourses,
+        })); // Update Redux store with student data
       }
     } catch (error) {
       console.error("Failed to fetch student data:", error);
@@ -110,12 +120,19 @@ export default function StudentDashboard() {
   }, []);
 
   useEffect(() => {
-    if (location.pathname.startsWith("/student-dashboard/course")) {
+    if (location.pathname.startsWith("/course/")) {
       setActiveNav("courses-available");
     }
   }, [location.pathname]);
 
-  const go = (id) => { setActiveNav(id); setView(null); setSidebarOpen(false); };
+  const go = (id) => {
+    setActiveNav(id);
+    setView(null);
+    setSidebarOpen(false);
+    if (location.pathname.startsWith("/enroll")) {
+      navigate("/student-dashboard");
+    }
+  };
   const unread = STUDENT.notifications.filter((n) => !n.read).length;
 
   const handleLogout = async () => {
@@ -131,7 +148,7 @@ export default function StudentDashboard() {
   };
 
   const renderPage = () => {
-    if (location.pathname.startsWith("/student-dashboard/course")) return <CourseDetail />;
+    if (location.pathname.startsWith("/course/")) return <CoursePage />;
     if (view === "profile") return <ViewProfile onBack={() => setView(null)} />;
     if (view === "edit-profile") return <EditProfile onBack={() => setView(null)} />;
     switch (activeNav) {
@@ -243,7 +260,9 @@ export default function StudentDashboard() {
       </header>
 
       {/* ── MAIN ── */}
-      <main className="sd-main">{renderPage()}</main>
+      <main className="sd-main">
+        {location.pathname.startsWith("/enroll") && children ? children : renderPage()}
+      </main>
     </div>
   );
 }
@@ -328,26 +347,144 @@ function MyProgress() {
 
 function Transactions() {
   const user = useSelector((state) => state.studentDetails.student);
-  const transactions = Array.isArray(user?.transactions)
+  const [payments, setPayments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [downloadingId, setDownloadingId] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPayments = async () => {
+      try {
+        setError("");
+        const response = await axios.get("/api/payments/history", { withCredentials: true });
+        if (!isMounted) return;
+        const data = Array.isArray(response?.data?.data) ? response.data.data : [];
+        setPayments(data);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Failed to fetch payment history:", err);
+        setError("Unable to load transaction history.");
+      } finally {
+        if (!isMounted) return;
+        setIsLoading(false);
+      }
+    };
+
+    fetchPayments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const transactions = payments.length
+    ? payments.map((payment) => {
+        const createdAt = payment?.createdAt ? new Date(payment.createdAt) : null;
+        const statusLabel =
+          payment?.paymentStatus === "completed"
+            ? "Success"
+            : payment?.paymentStatus === "failed"
+            ? "Failed"
+            : "Pending";
+        const statusClass =
+          payment?.paymentStatus === "completed"
+            ? "green"
+            : payment?.paymentStatus === "failed"
+            ? "red"
+            : "amber";
+
+        return {
+          id: payment?.transactionId || payment?._id || "-",
+          paymentId: payment?._id || "",
+          date: createdAt
+            ? createdAt.toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "-",
+          course: payment?.course?.title || "Course",
+          amount: `₹${Number(payment?.amount || 0).toLocaleString("en-IN")}`,
+          status: statusLabel,
+          statusClass,
+        };
+      })
+    : Array.isArray(user?.transactions)
     ? user.transactions
     : STUDENT.transactions;
+
+  const downloadSlip = async (paymentId) => {
+    if (!paymentId) return;
+    setDownloadingId(paymentId);
+    try {
+      const response = await axios.get(`/api/payments/${paymentId}/invoice`, {
+        withCredentials: true,
+      });
+      const invoiceUrl = response?.data?.data?.invoiceUrl;
+      if (!invoiceUrl) {
+        throw new Error("Invoice URL missing");
+      }
+      const link = document.createElement("a");
+      link.href = invoiceUrl;
+      link.target = "_blank";
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Failed to download invoice:", err);
+      setError(err?.message || "Unable to download invoice.");
+    } finally {
+      setDownloadingId("");
+    }
+  };
 
   return (
     <div className="sd-page">
       <h1 className="sd-h1">Transaction History</h1>
+      {error && <div className="sd-empty">{error}</div>}
       <div className="sd-table-wrap">
         <table className="sd-table">
           <thead>
-            <tr><th>Transaction ID</th><th>Date</th><th>Course</th><th>Amount</th><th>Status</th></tr>
+            <tr><th>Transaction ID</th><th>Date</th><th>Course</th><th>Amount</th><th>Status</th><th>Slip</th></tr>
           </thead>
           <tbody>
+            {isLoading && (
+              <tr>
+                <td colSpan="5" className="sd-empty">Loading transactions...</td>
+              </tr>
+            )}
+            {!isLoading && transactions.length === 0 && (
+              <tr>
+                <td colSpan="5" className="sd-empty">No transactions yet.</td>
+              </tr>
+            )}
             {transactions.map((t) => (
               <tr key={t.id}>
                 <td className="sd-txn-id">{t.id}</td>
                 <td>{t.date}</td>
                 <td>{t.course}</td>
                 <td className="sd-txn-amt">{t.amount}</td>
-                <td><span className={`sd-tag ${t.status === "Success" ? "green" : "red"}`}>{t.status}</span></td>
+                <td>
+                  <span className={`sd-tag ${t.statusClass || (t.status === "Success" ? "green" : t.status === "Failed" ? "red" : "amber")}`}>
+                    {t.status}
+                  </span>
+                </td>
+                <td>
+                  {t.paymentId && t.status === "Success" ? (
+                    <button
+                      className="sd-dl-btn"
+                      onClick={() => downloadSlip(t.paymentId)}
+                      disabled={downloadingId === t.paymentId}
+                    >
+                      {downloadingId === t.paymentId ? "Downloading..." : "Download"}
+                    </button>
+                  ) : (
+                    "-"
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

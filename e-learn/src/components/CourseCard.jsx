@@ -1,7 +1,9 @@
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import devImage from "../images/1687.jpg";
 
 export default function CourseCard({ c, showBtn }) {
+  const navigate = useNavigate();
   const courses = useSelector((state) => state.activeCourses.courses);
   const courseId = String(c?._id || c?.id || "").trim();
   const storedCourse = courseId
@@ -46,7 +48,11 @@ export default function CourseCard({ c, showBtn }) {
         <div className="sd-ccard-foot">
           <span className="sd-prog-inst">{completed}/{total} lessons   {progress}%</span>
           {showBtn && (
-            <button className="sd-cont-btn" style={{ borderColor: accentColor, color: accentColor }}>
+            <button
+              className="sd-cont-btn"
+              style={{ borderColor: accentColor, color: accentColor }}
+              onClick={() => navigate(`/course/${courseId}`)}
+            >
               Continue
             </button>
           )}

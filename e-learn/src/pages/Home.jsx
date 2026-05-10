@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { enrollStudent, selectCourse } from "../features/activeCoursesSlice";
+import { useDispatch } from "react-redux";
+import { selectCourse } from "../features/activeCoursesSlice";
 import StatsSection from "../components/StatsSection";
 import Footer from "../components/Footer";
 import devImage from "../images/1687.jpg";
@@ -14,14 +14,11 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
-  const student = useSelector((state) => state.studentDetails.student);
   const { publicCourses, status, error } = useAvailablePublicCourses();
 
   const handleEnroll = (course) => {
-    const studentId = student?._id || "local-student";
-    dispatch(enrollStudent({ courseId: course._id, studentId }));
     dispatch(selectCourse(course._id));
-    navigate(`/course/${course._id}`, {
+    navigate(`/course_detail/${course._id}`, {
       state: { backgroundLocation: location },
     });
   };

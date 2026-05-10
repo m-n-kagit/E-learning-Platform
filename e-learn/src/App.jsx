@@ -14,6 +14,7 @@ import Forget_Password from "./pages/Forget_Password";
 import CourseAdminDashboard from "./pages/CourseAdminDashboard";
 import GlobalAdminDashboard from "./pages/GlobalAdminDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
+import Enroll from "./pages/Enroll";
 import "./styles.css";
 import { ClipLoader } from "react-spinners";
 
@@ -128,11 +129,15 @@ function AppLayout() {
   const isDashboardRoute =
     routeContextLocation.pathname === "/course-admin" ||
     routeContextLocation.pathname === "/global-admin" ||
-    routeContextLocation.pathname.startsWith("/student-dashboard");
+    routeContextLocation.pathname.startsWith("/student-dashboard") ||
+    routeContextLocation.pathname.startsWith("/course/") ||
+    routeContextLocation.pathname.startsWith("/enroll");
   const showNavbar = !isDashboardRoute;
 
   async function directTo() {
-    if (location.pathname.startsWith("/course")) return;
+    if (location.pathname.startsWith("/course_detail")) return;
+    if (location.pathname.startsWith("/course/")) return;
+    if (location.pathname.startsWith("/enroll")) return;
     if(localStorage.getItem("hasSession") === "true") {
     try {
       await axios.get("/api/auth/me", {
@@ -172,8 +177,6 @@ function AppLayout() {
         <Route path="/about" element={<About />} />
         <Route path="/explore" element={<Explore />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/course" element={<CourseDetailModal />} />
-        <Route path="/course/:courseId" element={<CourseDetailModal />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forget-password" element={<Forget_Password />} />
         <Route path="/signup" element={<Signup />} />
@@ -187,14 +190,15 @@ function AppLayout() {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={["user"]} />}>
           <Route path="/student-dashboard" element={<StudentDashboard />} />
-          <Route path="/student-dashboard/course" element={<StudentDashboard />} />
-          <Route path="/student-dashboard/course/:courseId" element={<StudentDashboard />} />
+          <Route path="/course_detail/:courseId" element={<CourseDetailModal />} />
+          <Route path="/course/:courseId" element={<StudentDashboard />} />
+          <Route path="/enroll" element={<StudentDashboard><Enroll /></StudentDashboard>} />
+          <Route path="/enroll/:courseId" element={<StudentDashboard><Enroll /></StudentDashboard>} />
         </Route>
       </Routes>
       {backgroundLocation && (
         <Routes>
-          <Route path="/course" element={<CourseDetailModal />} />
-          <Route path="/course/:courseId" element={<CourseDetailModal />} />
+          <Route path="/course_detail/:courseId" element={<CourseDetailModal />} />
         </Routes>
       )}
     </>

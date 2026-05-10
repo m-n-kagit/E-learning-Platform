@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
-import { enrollStudent, selectCourse } from "../../features/activeCoursesSlice";
+import { selectCourse } from "../../features/activeCoursesSlice";
 import useAvailablePublicCourses from "../../hooks/useAvailablePublicCourses";
 import devImage from "../../images/1687.jpg";
 const resolveInstructorName = (instructor) => {
@@ -25,6 +25,7 @@ export default function CoursesAvailable({
   const navigate = useNavigate();
   const location = useLocation();
   const student = useSelector((state) => state.studentDetails.student);
+  const enrolledCourses = Array.isArray(student?.enrolledCourses) ? student.enrolledCourses : [];
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(9);
   const offset = (currentPage - 1) * pageSize;
@@ -115,11 +116,17 @@ export default function CoursesAvailable({
   }, [currentPage, totalPages]);
 
   const handleOpenCourse = (course) => {
-    const studentId = student?._id || "local-student";
-    dispatch(enrollStudent({ courseId: course._id, studentId }));
+    const isAlreadyEnrolled = enrolledCourses.some(
+      (enrolledCourse) => String(enrolledCourse?._id || enrolledCourse?.id || enrolledCourse) === String(course?._id)
+    );
     dispatch(selectCourse(course._id));
 
-    navigate(`/course/${course._id}`, {
+    if (isAlreadyEnrolled) {
+      navigate(`/course/${course._id}`);
+      return;
+    }
+
+    navigate(`/course_detail/${course._id}`, {
       state: { backgroundLocation: location },
     });
   };
@@ -214,6 +221,9 @@ export default function CoursesAvailable({
             const thumbnail = course.thumbnail || devImage;
             const instructorName = resolveInstructorName(course.instructor);
             const lessonsCount = Array.isArray(course.lessons) ? course.lessons.length : 0;
+            const isAlreadyEnrolled = enrolledCourses.some(
+              (enrolledCourse) => String(enrolledCourse?._id || enrolledCourse?.id || enrolledCourse) === String(course._id)
+            );
 
             return (
               <div className="sd-avail-card" key={course._id}>
@@ -231,7 +241,7 @@ export default function CoursesAvailable({
                     {studentsLabel} students · {lessonsCount} lessons
                   </span>
                   <button className="sd-avail-enroll" onClick={() => handleOpenCourse(course)}>
-                     View Details 
+                     {isAlreadyEnrolled ? "View Course" : "View Details"}
                   </button>
                 </div>
               </div>

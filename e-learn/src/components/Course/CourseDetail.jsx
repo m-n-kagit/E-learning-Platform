@@ -2,7 +2,7 @@ import "./CourseDetail.css";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useSelector } from "react-redux";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import ReactPlayer from "react-player";
 const sampleCourse = {
   title: "Full Stack Web Development",
@@ -65,12 +65,16 @@ function normalizeVideoUrl(value) {
   return resolved;
 }
 export default function CourseDetail({ course: courseProp }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { courseId } = useParams();//useParams returns an object of 
   // key-value pairs of URL parameters. 
   // In this case, we expect a parameter named courseId in the URL, 
   // which we can use to identify which course's details to display. 
   // If the URL is something like /courses/123, then courseId will be "123".
   const { courses, selectedCourseId } = useSelector((state) => state.activeCourses);
+  const student = useSelector((state) => state.studentDetails.student);
+  const enrolledCourses = Array.isArray(student?.enrolledCourses) ? student.enrolledCourses : [];
   const normalizedRouteCourseId = String(courseId || "").trim();
   const courseFromRoute = normalizedRouteCourseId
     ? courses.find((item) => String(item._id) === normalizedRouteCourseId) || null
@@ -78,7 +82,19 @@ export default function CourseDetail({ course: courseProp }) {
   const courseFromStore = courses.find((item) => item._id === selectedCourseId) || null;
   const [fetchedCourse, setFetchedCourse] = useState(null);
   const [fetchError, setFetchError] = useState("");
-
+  let handleEnroll = () => {
+    const targetCourseId = course?._id || courseId || "";
+    if (student?._id) {
+      navigate(
+        targetCourseId
+          ? (isAlreadyEnrolled ? `/course/${targetCourseId}` : `/enroll/${targetCourseId}`)
+          : "/enroll"
+      );
+    } else {
+      navigate("/login");
+      alert("Please log in to enroll in this course.");
+    }
+  };
   useEffect(() => {
     if (!normalizedRouteCourseId) return;
     if (courseProp || courseFromRoute || courseFromStore) return;
@@ -104,6 +120,9 @@ export default function CourseDetail({ course: courseProp }) {
   }, [normalizedRouteCourseId, courseProp, courseFromRoute, courseFromStore]);
 
   const course = courseProp || courseFromRoute || courseFromStore || fetchedCourse || sampleCourse;
+  const isAlreadyEnrolled = enrolledCourses.some(
+    (enrolledCourse) => String(enrolledCourse?._id || enrolledCourse?.id || enrolledCourse) === String(course?._id || courseId || "")
+  );
 
   const title = course?.title || "Untitled Course";
   const description = course?.description || "No description available.";
@@ -122,7 +141,7 @@ export default function CourseDetail({ course: courseProp }) {
   const overviewVideoUrl =
     course?.overview_video ||
     course?.overviewVideoUrl ||
-    sampleCourse.sampleVideoUrl ||
+    
     "";
   console.log("CourseDetail Rendered with url:", overviewVideoUrl);
   return (
@@ -130,7 +149,7 @@ export default function CourseDetail({ course: courseProp }) {
       <div className="course-detail-video-wrap">
         {overviewVideoUrl ? (
           <ReactPlayer
-            src= {overviewVideoUrl}
+            src={overviewVideoUrl}
             controls
             width="100%"
             height="100%"
@@ -143,7 +162,9 @@ export default function CourseDetail({ course: courseProp }) {
         )}
         
         <div className="course-detail-item course-detail-item-action">
-            <button className="course-detail-enroll-btn">Enroll Now</button>
+            <button className="course-detail-enroll-btn" onClick={handleEnroll}>
+              {isAlreadyEnrolled ? "View Course" : "Enroll Now"}
+            </button>
           </div>
       </div>
 

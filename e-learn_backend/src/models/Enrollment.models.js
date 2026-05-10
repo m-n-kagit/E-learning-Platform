@@ -18,5 +18,5 @@ const enrollmentSchema = new mongoose.Schema({
     default: "pending"
   }
 });
-
-export default enrollmentModel = mongoose.model("Enrollment", enrollmentSchema);
+const enrollmentModel = mongoose.model("Enrollment", enrollmentSchema);
+export default enrollmentModel ;

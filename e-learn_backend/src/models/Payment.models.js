@@ -27,5 +27,15 @@ const paymentSchema = new mongoose.Schema({
     transactionId: {
         type: String,
         trim: true
+    },
+    invoiceUrl: {
+        type: String,
+        trim: true
+    },
+    invoicePublicId: {
+        type: String,
+        trim: true
     }
 }, { timestamps: true });
+
+export default mongoose.model("Payment", paymentSchema);

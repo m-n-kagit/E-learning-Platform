@@ -24,6 +24,8 @@ const createEmptyLessonForm = () => ({
   lessonDocument: null,
 });
 
+const createQueuedLessonId = () => `queued-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+
 const deriveInitials = (name = "") => {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "";
@@ -413,11 +415,14 @@ function LessonBuilder({ courseData, onBack }) {
     }
 
     return {
+      id: createQueuedLessonId(),
       title: resolvedTitle,
       module: lessonForm.module.trim(),
       description: lessonForm.description.trim(),
       lessonVideo: lessonForm.lessonVideo,
       lessonDocument: lessonForm.lessonDocument,
+      lessonVideoName: lessonForm.lessonVideo?.name || "",
+      lessonDocumentName: lessonForm.lessonDocument?.name || "",
       type: tab,
     };
   };
@@ -670,10 +675,18 @@ function LessonBuilder({ courseData, onBack }) {
                 </tr>
               ) : (
                 queuedLessons.map((lesson, index) => (
-                  <tr key={`${lesson.title}-${index}`} style={{ borderTop: "1px solid rgba(0, 0, 0, 0.16)" }}>
+                  <tr key={lesson.id || `${lesson.title}-${index}`} style={{ borderTop: "1px solid rgba(0, 0, 0, 0.16)" }}>
                     <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 500, color: "#1a2e0f" }}>{lesson.title}</td>
                     <td style={{ padding: "12px 16px", fontSize: 13, color: "#1a2e0f" }}>{lesson.module || "Untitled module"}</td>
-                    <td style={{ padding: "12px 16px", fontSize: 13, color: "#1a2e0f" }}>{lesson.description || "-"}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 13, color: "#1a2e0f" }}>
+                      <div>{lesson.description || "-"}</div>
+                      {(lesson.lessonVideoName || lesson.lessonDocumentName) && (
+                        <div style={{ marginTop: 6, fontSize: 11, color: "#4a6830" }}>
+                          {lesson.lessonVideoName && <div>Video: {lesson.lessonVideoName}</div>}
+                          {lesson.lessonDocumentName && <div>Document: {lesson.lessonDocumentName}</div>}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ padding: "12px 16px" }}>
                       <span style={styles.tagBlue}>
                         {lesson.lessonVideo && lesson.lessonDocument

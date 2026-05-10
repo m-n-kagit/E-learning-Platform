@@ -13,6 +13,7 @@ import uploadCloudinary from "../utils/cloudinery.js";
 import BlockedToken from "../models/Blocked_tokens.models.js";
 import virus_check from "../utils/virus_total.js";
 import buildProfileInitial from "../utils/profileInitials.js";
+import logger from "../config/logger.js";
 
 const cookieMaxAge = Number(process.env.ACCESS_TOKEN_COOKIE_MAX_AGE_MS) || 60 * 60 * 1000;
 const resetPasswordCookieMaxAge = 10 * 60 * 1000; // 10 minutes for password reset token
@@ -94,6 +95,13 @@ const registerUser = async (req, res, next) => {
     setTokenCookie(res, user._id, cookieMaxAge, {
       purpose: "auth",
       expiresIn: "24h",
+    });
+
+    logger.info("user_registered", {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      ip: req.ip,
     });
 
     res.status(201).json({
@@ -208,6 +216,13 @@ const registerTempUser = async (req, res, next) => { //for course admin
       adminDocumentPublicId: adminDocument?.public_id || "",
     });
 
+    logger.info("temp_user_registered", {
+      tempUserId: tempUser._id,
+      email: tempUser.email,
+      role: tempUser.role,
+      ip: req.ip,
+    });
+
     res.status(201).json({
       success: true,
       message: "Temporary registration saved. Verify OTP within 10 minutes to activate the account.",
@@ -250,6 +265,13 @@ const loginUser = async (req, res, next) => {
     setTokenCookie(res, user._id, cookieMaxAge, {
       purpose: "auth",
       expiresIn: "1d",
+    });
+
+    logger.info("user_login", {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      ip: req.ip,
     });
 
     res.status(200).json({

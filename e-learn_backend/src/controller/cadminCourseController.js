@@ -4,7 +4,9 @@ import path from "path";
 import Instructor from "../models/Instructor.models.js";
 import Course from "../models/Course.models.js";
 import Lesson from "../models/Lesson.models.js";
+import Enrollment from "../models/Enrollment.models.js";
 import uploadCloudinary from "../utils/cloudinery.js";
+import logger from "../config/logger.js";
 
 const parseLessonsInput = (lessonsInput) => {
     if (Array.isArray(lessonsInput)) {
@@ -28,6 +30,14 @@ const parseLessonsInput = (lessonsInput) => {
 const getUploadedFiles = (req, fieldName) => {
     const files = req.files?.[fieldName];
     return Array.isArray(files) ? files : [];
+};
+
+const isVideoUpload = (file) => {
+    const mimeType = String(file?.mimetype || "").toLowerCase();
+    const extension = path.extname(String(file?.originalname || "")).toLowerCase();
+    const knownVideoExtensions = new Set([".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"]);
+
+    return mimeType.startsWith("video/") || knownVideoExtensions.has(extension);
 };
 
 const cleanupUploadedFiles = async (req) => {
@@ -203,6 +213,13 @@ const uploadContent  = async (req,res,next)=>{
             success: true,
             data: populatedCourse
         });
+
+        logger.info("course_uploaded", {
+            courseId: populatedCourse?._id,
+            title: populatedCourse?.title,
+            instructorId,
+            ip: req.ip,
+        });
     } catch (error) {
         if (error.statusCode) {
             res.status(error.statusCode);
@@ -238,6 +255,7 @@ const getAllCourses = async (req,res,next)=>{ // courses for course admin and in
         next(error);
     }
 }
+
 
 const  updateCourse = async (req,res,next)=>{
     const courseId = req.body.courseId || req.body._id;
@@ -284,6 +302,13 @@ const  updateCourse = async (req,res,next)=>{
         const updatedCourse = await Course.findByIdAndUpdate(courseId, courseData, {new: true})
             .populate("instructor", "name email")
             .populate("lessons");
+
+        logger.info("course_updated", {
+            courseId: updatedCourse?._id,
+            title: updatedCourse?.title,
+            instructorId: req.user?._id,
+            ip: req.ip,
+        });
         if(!updatedCourse){
             res.status(404);
             throw new Error("Course not found");
@@ -293,6 +318,12 @@ const  updateCourse = async (req,res,next)=>{
             data: updatedCourse
         })}
     catch(error){
+        logger.error("course_update_failed", {
+            courseId: courseId,
+            instructorId: req.user?._id,
+            ip: req.ip,
+            error: error.message
+        });
         next(error);
     } finally {
         await cleanupUploadedFiles(req);
@@ -341,12 +372,10 @@ const addLesson = async (req,res,next)=>{
 
         const [lessonVideoFile] = getUploadedFiles(req, "lessonVideo");
         const [lessonDocumentFile] = getUploadedFiles(req, "lessonDocument");
-        const isVideoFile = (file) => file?.mimetype?.startsWith("video/");
-
         let uploadedVideo = null;
         let uploadedDocument = null;
 
-        if (lessonVideoFile?.path && isVideoFile(lessonVideoFile)) {
+        if (lessonVideoFile?.path && isVideoUpload(lessonVideoFile)) {
             uploadedVideo = await uploadCloudinary(lessonVideoFile.path, {
                 resource_type: "video",
                 folder: "course-lessons"
@@ -358,7 +387,7 @@ const addLesson = async (req,res,next)=>{
             }
         }
 
-        if (lessonDocumentFile?.path || (lessonVideoFile?.path && !isVideoFile(lessonVideoFile))) {
+        if (lessonDocumentFile?.path || (lessonVideoFile?.path && !isVideoUpload(lessonVideoFile))) {
             const documentFile = lessonDocumentFile?.path ? lessonDocumentFile : lessonVideoFile;
             uploadedDocument = await uploadCloudinary(documentFile.path, {
                 resource_type: "raw",
@@ -411,8 +440,23 @@ const addLesson = async (req,res,next)=>{
                 lesson,
                 course: updatedCourse
             }
-        })}
+        })
+
+        logger.info("lesson_uploaded", {
+            lessonId: lesson?._id,
+            courseId: course?._id,
+            title: lesson?.title,
+            instructorId: req.user?._id,
+            ip: req.ip,
+        });
+    }
     catch(error){
+        logger.error("lesson_upload_failed", {
+            courseId: course?._id,
+            instructorId: req.user?._id,
+            ip: req.ip,
+            error: error.message
+        });
         next(error);
     } finally {
         await cleanupUploadedFiles(req);
@@ -452,7 +496,21 @@ const removeLesson = async (req,res,next)=>{
             success: true,
             message: "Lesson removed from course successfully"
         });
+
+        logger.info("lesson_deleted", {
+            lessonId,
+            courseId: course?._id,
+            instructorId: req.user?._id,
+            ip: req.ip,
+        });
     } catch (error) {
+        logger.error("lesson_delete_failed", {
+            lessonId,
+            courseId: course?._id,
+            instructorId: req.user?._id,
+            ip: req.ip,
+            error: error.message
+        });
         next(error);
     }
 }
@@ -511,12 +569,10 @@ const updateLesson = async (req, res, next) => {
 
         const [lessonVideoFile] = getUploadedFiles(req, "lessonVideo");
         const [lessonDocumentFile] = getUploadedFiles(req, "lessonDocument");
-        const isVideoFile = (file) => file?.mimetype?.startsWith("video/");
-
         let uploadedVideo = null;
         let uploadedDocument = null;
 
-        if (lessonVideoFile?.path && isVideoFile(lessonVideoFile)) {
+        if (lessonVideoFile?.path && isVideoUpload(lessonVideoFile)) {
             uploadedVideo = await uploadCloudinary(lessonVideoFile.path, {
                 resource_type: "video",
                 folder: "course-lessons"
@@ -528,7 +584,7 @@ const updateLesson = async (req, res, next) => {
             }
         }
 
-        if (lessonDocumentFile?.path || (lessonVideoFile?.path && !isVideoFile(lessonVideoFile))) {
+        if (lessonDocumentFile?.path || (lessonVideoFile?.path && !isVideoUpload(lessonVideoFile))) {
             const documentFile = lessonDocumentFile?.path ? lessonDocumentFile : lessonVideoFile;
             uploadedDocument = await uploadCloudinary(documentFile.path, {
                 resource_type: "raw",
@@ -561,12 +617,78 @@ const updateLesson = async (req, res, next) => {
             success: true,
             data: lesson,
         });
+
+        logger.info("lesson_edited", {
+            lessonId: lesson?._id,
+            courseId: course?._id,
+            instructorId: req.user?._id,
+            ip: req.ip,
+        });
     } catch (error) {
+        logger.error("lesson_update_failed", {
+            lessonId: lesson?._id,
+            courseId: course?._id,
+            instructorId: req.user?._id,
+            ip: req.ip,
+            error: error.message
+        });
         next(error);
     } finally {
         await cleanupUploadedFiles(req);
     }
 };
 
+const deleteCourse = async (req, res, next) => {
+    const courseId = req.body.courseId || req.params.courseId || req.query.courseId;
 
-export {uploadContent, getAllCourses, updateCourse, addLesson, removeLesson, updateLesson}
+    try {
+        if (!mongoose.isValidObjectId(courseId)) {
+            res.status(400);
+            throw new Error("Invalid courseId");
+        }
+
+        const course = await Course.findById(courseId);
+        if (!course) {
+            res.status(404);
+            throw new Error("Course not found");
+        }
+
+        if (req.user.role !== "admin" && course.instructor.toString() !== req.user._id.toString()) {
+            res.status(403);
+            throw new Error("You do not have permission to delete this course");
+        }
+
+        await Lesson.deleteMany({ course: course._id });
+        await Enrollment.deleteMany({ course: course._id });
+        await Instructor.findOneAndUpdate(
+            { user: course.instructor },
+            { $pull: { courses: course._id } },
+            { new: true }
+        );
+        await Course.findByIdAndDelete(course._id);
+
+        res.status(200).json({
+            success: true,
+            message: "Course deleted successfully"
+        });
+
+        logger.info("course_deleted", {
+            courseId: course?._id,
+            title: course?.title,
+            instructorId: req.user?._id,
+            ip: req.ip,
+        });
+    } catch (error) {
+        logger.error("course_delete_failed", {
+            courseId: course?._id,
+            title: course?.title,
+            instructorId: req.user?._id,
+            ip: req.ip,
+            error: error.message
+        });
+        next(error);
+    }
+};
+
+
+export {uploadContent, getAllCourses, updateCourse, addLesson, removeLesson, updateLesson, deleteCourse}
