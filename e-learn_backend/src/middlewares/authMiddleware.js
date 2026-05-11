@@ -7,6 +7,7 @@ dotenv.config();
 const tokenSecret = process.env.ACCESS_TOKEN_SECRET;
 
 const protect = async (req, res, next) => {
+  console.log("Protect middleware invoked");
   try {
     let token = req.cookies?.token;
 
@@ -56,6 +57,7 @@ const protect = async (req, res, next) => {
 //RBAC - restrictTo middleware to restrict access based on user roles
 
 const restrictTo = (...roles) => {
+  console.log("Restricting access to roles:", roles);
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       res.status(403);

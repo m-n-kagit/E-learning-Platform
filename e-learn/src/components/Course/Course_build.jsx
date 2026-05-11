@@ -104,6 +104,7 @@ function CourseDetailsForm({ onNext }) {
   const [form, setForm] = useState({
     name: "",
     description: "",
+    category: "",
     price: "",
     level: "beginner",
     thumbnail: null,
@@ -161,6 +162,7 @@ function CourseDetailsForm({ onNext }) {
       const formData = new FormData();
       formData.append("title", form.name.trim());
       formData.append("description", form.description.trim());
+      formData.append("category", form.category.trim());
       formData.append("price", String(form.price));
       formData.append("level", form.level);
       formData.append("isPublished", "true");
@@ -178,6 +180,7 @@ function CourseDetailsForm({ onNext }) {
         title: savedCourse?.title || form.name.trim(),
         name: savedCourse?.name || form.name.trim(),
         description: savedCourse?.description || form.description.trim(),
+        category: savedCourse?.category || form.category.trim(),
         price: savedCourse?.price ?? Number(form.price),
         level: savedCourse?.level || form.level,
         thumbnail: savedCourse?.thumbnail || thumbPreview || "",
@@ -244,6 +247,16 @@ function CourseDetailsForm({ onNext }) {
             onChange={(event) => setField("description", event.target.value)}
           />
           {errors.description && <span style={styles.errMsg}>{errors.description}</span>}
+        </div>
+
+        <div style={{ ...styles.fgroup, gridColumn: "1 / -1" }}>
+          <label style={styles.label}>Category</label>
+          <input
+            style={styles.input}
+            placeholder="e.g. Web Development, Data Science"
+            value={form.category}
+            onChange={(event) => setField("category", event.target.value)}
+          />
         </div>
 
         <div style={styles.fgroup}>

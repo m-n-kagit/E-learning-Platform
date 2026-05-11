@@ -26,7 +26,12 @@ const instructorSchema = new mongoose.Schema({
         type: Number,
         min: 1,
         max: 5
-     }
+      },
+      revenue: {
+          type: Number,
+          default: 0,
+          min: 0
+      }
 },{timestamps: true})
 
 const Instructor = mongoose.model("Instructor", instructorSchema);

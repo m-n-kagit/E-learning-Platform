@@ -3,7 +3,7 @@ import * as courseController from "../controller/cadminCourseController.js";
 import * as studentCourseController from "../controller/studentCourseController.js";
 import protect from "../middlewares/authMiddleware.js";
 import { courseMediaUpload } from "../middlewares/multer.js";
-import { enrollInCourse, getEnrolledCourses, getAllLessonsForCourse } from "../controller/courseEnrollController.js";
+import { enrollInCourse, getEnrolledCourses, getAllLessonsForCourse, removeEnrollment } from "../controller/courseEnrollController.js";
 const router = express.Router();
 
 const courseUploadFields = courseMediaUpload.fields([
@@ -97,6 +97,13 @@ router.get("/my-enrollments",
     protect.protect,
     protect.restrictTo("user", "course_admin", "admin"),
     getEnrolledCourses
+);
+
+router.delete(
+    "/unenroll",
+    protect.protect,
+    protect.restrictTo("user"),
+    removeEnrollment
 );
 
 router.get("/course/:courseId/lessons",

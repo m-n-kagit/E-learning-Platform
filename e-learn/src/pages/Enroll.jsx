@@ -135,6 +135,7 @@ export default function Enroll() {
           courseId,
           amount: price,
           paymentMethod,
+          instructorId: course?.instructor?._id || course?.instructor,
         },
         { withCredentials: true }
       );

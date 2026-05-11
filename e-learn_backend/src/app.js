@@ -37,9 +37,12 @@ app.use(cookieParser())
 // Mount auth routes
 app.use("/api/auth", authRoutes);
 app.use("/api/emails", emailRoutes); 
-app.use("/api/courses", courseHandlingRoutes);
+app.use("/api/courses",(req,res,next)=>{console.log("Courses API called"); next();}, courseHandlingRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api", reviewRoutes);
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 
 // Global error handler — MUST be last middleware

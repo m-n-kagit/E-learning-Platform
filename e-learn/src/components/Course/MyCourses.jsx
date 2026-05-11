@@ -51,6 +51,23 @@ function ViewCourses({ scope = "student" }) {
     };
   }, [dispatch, scope]);
 
+  const handleRemoveCourse = async (courseId) => {
+    const confirmed = window.confirm("Remove this course from your enrollments?");
+    if (!confirmed) return;
+    try {
+      await axios.delete("/api/courses/unenroll", {
+        withCredentials: true,
+        data: { courseId },
+      });
+      console.log("Course removed successfully");
+      setLocalCourses((prev) => prev.filter((course) => String(course?._id || course?.id) !== String(courseId)));
+    } catch (removeError) {
+      console.error("Failed to remove course:", removeError);
+      const message = removeError?.response?.data?.message || "Unable to remove this course right now.";
+      window.alert(message);
+    }
+  };
+
   if (status === "loading") {
     return (
       <div className="sd-page">
@@ -79,7 +96,19 @@ function ViewCourses({ scope = "student" }) {
     <div className="sd-page">
       <div className="sd-course-grid">
         {courses.map((course) => (
-          <CourseCard key={course._id || course.id} c={course} showBtn />
+          <div key={course._id || course.id}>
+            <CourseCard c={course} showBtn />
+            {scope === "student" && (
+              <button
+                className="sd-cont-btn"
+                style={{ marginTop: 8 }}
+                onClick={() => handleRemoveCourse(course._id || course.id)}
+                type="button"
+              >
+                Remove Course
+              </button>
+            )}
+          </div>
         ))}
       </div>
     </div>

@@ -95,6 +95,46 @@ export const getEnrolledCourses = async (req, res, next) => {
     }
 };
 
+export const removeEnrollment = async (req, res, next) => {
+  console.log("0")
+  try {
+    const userId = req.user?._id;
+    const courseId = req.body.courseId || req.params.courseId;
+
+    if (!userId) {
+      res.status(401);
+      throw new Error("Unauthorized user");
+    }
+    console.log("1")
+    if (!mongoose.isValidObjectId(courseId)) {
+      res.status(400);
+      throw new Error("Invalid courseId");
+    }
+    console.log("2")
+    
+    const enrollment = await Enrollment.findOne({ user: userId, course: courseId });
+    if (!enrollment) {
+      res.status(404);
+      throw new Error("Enrollment not found");
+    }
+    
+    console.log("3")
+    await Promise.all([
+      Enrollment.deleteOne({ _id: enrollment._id }),
+      Student.findOneAndUpdate({ user: userId }, { $pull: { enrolledCourses: courseId } }, { new: true }),
+      Course.findByIdAndUpdate(courseId, { $pull: { enrolledStudents: userId } }, { new: true }),
+    ]);
+    
+    console.log("4")
+    res.status(200).json({
+      success: true,
+      message: "Course removed successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 const getAllLessonsForCourse = async (req,res,next)=>{
     const {courseId} = req.params;

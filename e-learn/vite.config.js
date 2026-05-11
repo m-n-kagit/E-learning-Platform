@@ -12,7 +12,7 @@ export default defineConfig({
   server:{
   proxy : {
     '/api' : {
-      target: 'http://localhost:4500/',
+      target: 'http://localhost:45000/',
       changeOrigin: true //means that the origin of the host 
       // header will be changed to the target URL. 
       // This is often necessary when the backend server 

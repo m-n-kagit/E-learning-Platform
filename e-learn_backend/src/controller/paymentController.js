@@ -4,6 +4,8 @@ import path from "path";
 import PDFDocument from "pdfkit";
 import uploadCloudinary from "../utils/cloudinery.js";
 import Enrollment from "../models/Enrollment.models.js";
+import Course from "../models/Course.models.js";
+import Instructor from "../models/Instructor.models.js";
 import { ensureCourseEnrollment } from "./courseEnrollController.js";
 import logger from "../config/logger.js";
 
@@ -67,7 +69,7 @@ const ensureInvoiceUploaded = async (paymentId, payment) => {
 
 const createPayment= async (req, res, next) => {
   try {
-    const { courseId, amount, paymentMethod } = req.body;
+    const { courseId, amount, paymentMethod, instructorId } = req.body;
     const studentId = req.user._id;
     const existingEnrollment = await Enrollment.findOne({
       user: studentId,
@@ -77,6 +79,12 @@ const createPayment= async (req, res, next) => {
     if (existingEnrollment) {
       res.status(400);
       throw new Error("You are already enrolled in this course");
+    }
+
+    const course = await Course.findById(courseId).select("instructor price");
+    if (!course) {
+      res.status(404);
+      throw new Error("Course not found");
     }
 
      const transactionId =
@@ -92,6 +100,17 @@ const createPayment= async (req, res, next) => {
     });
     await payment.save();
     await ensureCourseEnrollment(studentId, courseId);
+
+    const resolvedInstructorId = String(instructorId || course.instructor || "").trim();
+    if (resolvedInstructorId) {
+      const instructor = await Instructor.findOne({ user: resolvedInstructorId });
+      if (instructor) {
+        instructor.revenue = Number(instructor.revenue || 0) + Number(amount || 0);
+        await instructor.save();
+      } else {
+        await Instructor.create({ user: resolvedInstructorId, revenue: Number(amount || 0) });
+      }
+    }
 
     logger.info("payment_created", {
       paymentId: payment._id,

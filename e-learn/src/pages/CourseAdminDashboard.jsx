@@ -686,8 +686,12 @@ function AdminLessonsEdit({ course, onBack }) {
       formData.append("order", String(Number(edit.order)));
     }
     formData.append("isPreview", String(Boolean(edit.isPreview)));
-    if (edit.lessonVideo) formData.append("lessonVideo", edit.lessonVideo);
-    if (edit.lessonDocument) formData.append("lessonDocument", edit.lessonDocument);
+    if (edit.lessonVideo instanceof File || edit.lessonVideo instanceof Blob) {
+      formData.append("lessonVideo", edit.lessonVideo);
+    }
+    if (edit.lessonDocument instanceof File || edit.lessonDocument instanceof Blob) {
+      formData.append("lessonDocument", edit.lessonDocument);
+    }
 
     try {
       setBusyLessonId(lessonId);
