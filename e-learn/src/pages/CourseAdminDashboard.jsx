@@ -56,8 +56,8 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "◻" },
   { id: "courses", label: "My Courses", icon: "▤" },
   { id: "course-upload", label: "Course Upload", icon: "↑" },
-  { id: "performance", label: "Student Performance", icon: "◈" },
-  { id: "analysis", label: "Course Analysis", icon: "⊕" },
+  // { id: "performance", label: "Student Performance", icon: "◈" },
+  // { id: "analysis", label: "Course Analysis", icon: "⊕" },
   { id: "feedback", label: "Feedback", icon: "✦" },
   // { id: "transactions", label: "Transactions", icon: "₿" },
 ];
@@ -237,8 +237,8 @@ export default function CourseAdminDashboard() {
       case "courses":     return <MyCourses admin={currentAdmin} coursesLoaded={coursesLoaded} onEditCourse={openCourseEdit} />;
       case "course-upload":      return <CourseUpload />;
       
-      case "performance": return <StudentPerformance admin={currentAdmin} />;
-      case "analysis":    return <CourseAnalysis admin={currentAdmin} onEditCourse={openCourseEdit} />;
+      // case "performance": return <StudentPerformance admin={currentAdmin} />;
+      // case "analysis":    return <CourseAnalysis admin={currentAdmin} onEditCourse={openCourseEdit} />;
       case "feedback":    return <Feedback admin={currentAdmin} />;
       // case "transactions":return <Transactions admin={currentAdmin} />;
       case "course-edit":   return <AdminCourseEdit course={selectedCourse || currentAdmin.courses[0]} onBack={() => go("courses")} onEditLessons={openLessonEdit} />;
@@ -1358,6 +1358,12 @@ function TeachingReviews({ onBack, admin }) {
                 </div>
                 <div className="ca-stars">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</div>
               </div>
+              <div style={{ fontSize: 12, color: "#3f5f2f", fontWeight: 600, marginBottom: 6 }}>
+                Course: {r.course}
+              </div>
+              <div style={{ fontSize: 12, color: "#3f5f2f", fontWeight: 600, marginBottom: 6 }}>
+                Course: {r.course}
+              </div>
               <p className="ca-review-text">{r.text}</p>
             </div>
           ))
@@ -1693,10 +1699,10 @@ const STYLES = `
 .ca-astat-lbl { font-size:11px; color:#666; }
 
 .ca-reviews-list { display:flex; flex-direction:column; gap:16px; }
-.ca-review-card { background:#161626; border:1px solid #ffffff08; border-radius:14px; padding:20px; }
+.ca-review-card { background:#aedc9f; border:1px solid #ffffff08; border-radius:14px; padding:20px; }
 .ca-review-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .ca-reviewer-ava { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#5468ff,#8b5cf6); color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; font-size:15px; }
-.ca-stars { color:#f8fc03; font-size:14px; margin-left:auto; }
+.ca-stars { color:#1f5c10; background-color:transparent; font-size:14px; margin-left:auto; letter-spacing:1px; font-weight:600; }
 .ca-review-text { font-size:13.5px; color:#999; line-height:1.6; margin:0; }
 .ca-big-rating { display:flex; flex-direction:column; align-items:center; gap:6px; background:#161626; border:1px solid #ffffff08; border-radius:14px; padding:24px 32px; }
 .ca-big-rating-num { font-size:48px; font-weight:800; color:#f59e0b; line-height:1; }
@@ -1741,6 +1747,7 @@ const STYLES = `
   border-color:var(--border-med);
   color:var(--text-primary);
 }
+.ca-review-card { background:#aedc9f; }
 .ca-dropdown, .ca-stat-card, .ca-income-chart, .ca-ccard, .ca-prog-card, .ca-analysis-card, .ca-review-card, .ca-big-rating, .ca-vp-stats, .ca-add-form { box-shadow:0 4px 24px rgba(0,0,0,0.08); }
 .ca-burger span { background:#fff; }
 .ca-icon-btn { color:rgba(255,255,255,0.85); border-color:rgba(255,255,255,0.35); }
@@ -1755,7 +1762,8 @@ const STYLES = `
 .ca-table th { color:var(--text-muted); }
 .ca-table td, .ca-notif-row p, .ca-notif-row span { color:var(--text-secondary); }
 .ca-table tr:hover td, .ca-notif-row.unread { background:rgba(255,255,255,0.18); }
-.ca-notif-dot, .ca-stars, .ca-big-rating-num, .ca-txn-id { color:var(--accent); background-color:var(--accent); }
+.ca-notif-dot, .ca-big-rating-num, .ca-txn-id { color:var(--accent); background-color:var(--accent); }
+.ca-stars { color:var(--accent); background:transparent; }
 .ca-notif-dot { background:var(--accent); }
 .ca-tag.green { background:rgba(112,171,93,0.16); color:var(--accent); }
 .ca-tag.orange, .ca-tag.blue { background:rgba(31,92,16,0.1); color:var(--accent); }

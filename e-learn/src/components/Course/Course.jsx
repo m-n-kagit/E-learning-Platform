@@ -520,12 +520,12 @@ const COURSE_STYLES = `
   border: none;
   background: none;
   font-size: 20px;
-  color: #fffff;
+  color: #6f8f62;
   cursor: pointer;
   padding: 0;
 }
 .cd-star.active {
-  color: #f5b301;
+  color: #1f5c10;
 }
 .cd-review-input {
   width: 100%;
@@ -563,7 +563,7 @@ const COURSE_STYLES = `
   border: 1px solid var(--border-med);
   border-radius: 12px;
   padding: 10px 12px;
-  background: rgba(255,255,255,0.45);
+  background: #aedc9f;
 }
 .cd-review-top {
   display: flex;
@@ -578,7 +578,7 @@ const COURSE_STYLES = `
   font-size: 0.75rem;
 }
 .cd-review-stars {
-  color: #f5b301;
+  color: #1f5c10;
   font-size: 0.9rem;
 }
 .cd-review-card p {
