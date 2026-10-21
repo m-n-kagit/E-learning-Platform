@@ -1,0 +1,11 @@
+pypdf
+langchain-text-splitters
+qdrant-client
+sentence-transformers
+langchain-huggingface
+langchain-qdrant
+langchain-google-genai
+fastembed 
+python-dotenv
+fastapi
+uvicorn[standard]
