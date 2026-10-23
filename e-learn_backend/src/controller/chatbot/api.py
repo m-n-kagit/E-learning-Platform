@@ -10,10 +10,10 @@ from pydantic import AnyHttpUrl, BaseModel, Field
 
 try:  # Package import
     from .rag import RAGError, answer_question
-    from .vector_store import DEFAULT_COLLECTION, store_pdf
+    from .vector_store import DEFAULT_COLLECTION, has_source, store_pdf
 except ImportError:  # Run with uvicorn api:app from this directory
     from rag import RAGError, answer_question
-    from vector_store import DEFAULT_COLLECTION, store_pdf
+    from vector_store import DEFAULT_COLLECTION, has_source, store_pdf
 
 
 logger = logging.getLogger(__name__)
@@ -29,6 +29,7 @@ class IndexResponse(BaseModel):
     message: str
     chunks_stored: int
     collection_name: str
+    already_indexed: bool = False
 
 
 class QuestionRequest(BaseModel):
@@ -45,11 +46,22 @@ class AnswerResponse(BaseModel):
 async def health() -> dict[str, str]:
     return {"status": "ok"}
 
-
-@app.post("/chatbot/index", response_model=IndexResponse)
+@app.post("/chatbot/document_fetch", response_model=IndexResponse)
 async def index_pdf(request: IndexRequest) -> IndexResponse:
     """Download a Cloudinary PDF, chunk it, embed it, and store it in Qdrant."""
     try:
+        exists = await asyncio.to_thread(
+            has_source,
+            str(request.source_url),
+            collection_name=request.collection_name,
+        )
+        if exists:
+            return IndexResponse(
+                message="PDF already indexed.",
+                chunks_stored=0,
+                collection_name=request.collection_name,
+                already_indexed=True,
+            )
         count = await asyncio.to_thread(
             store_pdf,
             str(request.source_url),
@@ -68,6 +80,7 @@ async def index_pdf(request: IndexRequest) -> IndexResponse:
         message="PDF indexed successfully.",
         chunks_stored=count,
         collection_name=request.collection_name,
+        already_indexed=False,
     )
 
 

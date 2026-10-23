@@ -123,6 +123,28 @@ def store_pdf(
     return len(documents)
 
 
+def has_source(
+    source: str,
+    *,
+    collection_name: str = DEFAULT_COLLECTION,
+    client: QdrantClient | None = None,
+) -> bool:
+    """Return whether this exact document URL already has chunks in Qdrant."""
+    qdrant = client or create_qdrant_client()
+    if not qdrant.collection_exists(collection_name):
+        return False
+    points, _ = qdrant.scroll(
+        collection_name=collection_name,
+        scroll_filter=models.Filter(
+            must=[models.FieldCondition(key="metadata.source", match=models.MatchValue(value=source))]
+        ),
+        limit=1,
+        with_payload=False,
+        with_vectors=False,
+    )
+    return bool(points)
+
+
 def search_similar(
     query: str,
     *,

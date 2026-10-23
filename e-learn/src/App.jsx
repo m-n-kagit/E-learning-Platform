@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useNavigate, Outlet } from "react-router-dom";
+﻿import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useNavigate, Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "./components/Navbar";
@@ -17,6 +17,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import Enroll from "./pages/Enroll";
 import "./styles.css";
 import { ClipLoader } from "react-spinners";
+import ChatBot from "./components/ChatBot";
 
 
 
@@ -108,7 +109,7 @@ function ProtectedRoute({ allowedRoles }) {
     // history is clean and doesn't include the intermediate login page, providing a smoother user experience.
   }
 
-  return <Outlet />;
+  return <><Outlet />{user.role === "user" && <ChatBot />}</>;
   // The Outlet component is a placeholder that renders the matched
   //  child route components.
 }

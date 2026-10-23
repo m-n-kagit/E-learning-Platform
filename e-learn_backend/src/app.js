@@ -7,6 +7,7 @@ import emailRoutes from "./routes/EmailRoutes.js";
 import courseHandlingRoutes from "./routes/courseHandlingRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
+import chatbotRoutes from "./routes/chatbotRoute.js";
 import errorHandler from "./middlewares/errorMiddleware.js";
 import rateLimiter from "./utils/rate-limiter.js";
 dotenv.config();
@@ -39,6 +40,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/emails", emailRoutes); 
 app.use("/api/courses",(req,res,next)=>{console.log("Courses API called"); next();}, courseHandlingRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 app.use("/api", reviewRoutes);
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
