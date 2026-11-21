@@ -16,7 +16,8 @@ E-learning Platform/
 Most active development is split between:
 
 - `e-learn`: frontend application and routing.
-- `e-learn_backend`: backend API, database models, controllers, middleware, tests, logs, invoices, and documentation diagrams.
+- `e-learn_backend`: Express API, database models, middleware, tests, and the Python chatbot service.
+- `e-learn_backend/src/controller/chatbot`: FastAPI RAG service, PDF ingestion, embeddings, and Qdrant configuration.
 
 ## Features
 
@@ -31,6 +32,8 @@ Most active development is split between:
 - MongoDB persistence with Mongoose models.
 - Cloudinary integration for uploaded course media.
 - VirusTotal integration for production file scanning.
+- Course chatbot with PDF indexing and retrieval-augmented answers.
+- Dense and sparse document search using Hugging Face embeddings, BM25, and Qdrant.
 - API rate limiting, sanitization, logging, and global error handling.
 
 ## Tech Stack
@@ -58,6 +61,16 @@ Most active development is split between:
 - Winston logging
 - Jest
 
+**Chatbot / RAG**
+
+- FastAPI and Uvicorn
+- Google Gemini `gemini-3.8-flash`
+- Hugging Face `BAAI/bge-small-en-v1.5` embeddings
+- Qdrant vector database
+- Qdrant BM25 sparse embeddings
+- LangChain document splitting and retrieval
+- Docker Compose
+
 ## Prerequisites
 
 - Node.js 18 or newer
@@ -66,6 +79,10 @@ Most active development is split between:
 - Cloudinary account for media uploads
 - SMTP credentials for OTP and contact email flows
 - VirusTotal API key if production file scanning is enabled
+- Python 3.10 or newer
+- Docker with Docker Compose
+- Google API key for Gemini
+- Qdrant API key
 
 ## Environment Variables
 
@@ -93,6 +110,28 @@ NODE_ENV=development
 
 The frontend Vite dev server proxies `/api` requests to `http://localhost:45000`, so the backend should use `PORT=45000` during local development unless you update `e-learn/vite.config.js`.
 
+Add the chatbot variables to `e-learn_backend/.env`:
+
+```env
+CHATBOT_API_URL=http://127.0.0.1:8000
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=your_qdrant_api_key
+GOOGLE_API_KEY=your_google_api_key
+GEMINI_MODEL=gemini-3.8-flash
+```
+
+The chatbot code checks `e-learn_backend/src/controller/chatbot/.env` first and falls back to `e-learn_backend/.env`. Docker Compose reads its variables from the chatbot directory, so this separate file is commonly used:
+
+```env
+# e-learn_backend/src/controller/chatbot/.env
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=your_qdrant_api_key
+GOOGLE_API_KEY=your_google_api_key
+GEMINI_MODEL=gemini-3.8-flash
+```
+
+Keep `.env` files private. Qdrant's local data directory is `e-learn_backend/src/controller/chatbot/qdrant_storage/`.
+
 ## Installation
 
 Install backend dependencies:
@@ -109,7 +148,74 @@ cd ../e-learn
 npm install
 ```
 
+Create a Python virtual environment and install the chatbot dependencies:
+
+```bash
+cd ../e-learn_backend
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r src/controller/chatbot/requirements.txt
+```
+
 ## Running Locally
+
+### Start Qdrant
+
+From the chatbot directory:
+
+```bash
+cd e-learn_backend/src/controller/chatbot
+docker compose up -d
+```
+
+This starts the `qdrant/qdrant:latest` container on:
+
+- REST API: `http://localhost:6333`
+- gRPC API: `localhost:6334`
+- Dashboard: `http://localhost:6333/dashboard`
+
+Persistent Qdrant data is stored in `./qdrant_storage`. Check or stop the service with:
+
+```bash
+docker compose ps
+docker compose logs -f qdrant
+docker compose down
+```
+
+### Start the FastAPI chatbot
+
+With the Python virtual environment active:
+
+```bash
+cd e-learn_backend
+source .venv/bin/activate
+python -m uvicorn src.controller.chatbot.api:app --reload --host 127.0.0.1 --port 8000
+```
+
+FastAPI is available at `http://127.0.0.1:8000`, with interactive API documentation at `http://127.0.0.1:8000/docs`.
+
+Verify the chatbot server:
+
+```bash
+curl http://127.0.0.1:8000/health
+# {"status":"ok"}
+```
+
+### RAG Architecture
+
+```text
+React chatbot
+  -> Express API (/api/chatbot)
+  -> FastAPI (/chatbot/document_fetch or /chatbot/ask)
+  -> PDF extraction and 1000-character text chunks
+  -> Dense embeddings: BAAI/bge-small-en-v1.5
+  -> Sparse embeddings: Qdrant/bm25
+  -> Qdrant hybrid collection
+  -> Top matching course chunks
+  -> Gemini 3.8 Flash grounded answer
+```
+
+The Express backend indexes PDF lesson resources for the current enrolled course. Each course uses a collection named `course_<sanitized_course_id>`. On a chat request, FastAPI retrieves up to four matching chunks by default, supplies those chunks as context to Gemini, and asks the model to answer only from the course material.
 
 Start the backend API:
 
@@ -223,6 +329,17 @@ Other routes:
 
 - `POST /api/emails/contact`
 - `GET /api/health`
+
+Chatbot routes:
+
+- `POST /api/chatbot/prepare`
+- `POST /api/chatbot/ask`
+
+FastAPI chatbot routes:
+
+- `GET /health`
+- `POST /chatbot/document_fetch`
+- `POST /chatbot/ask`
 
 ## Notes
 
